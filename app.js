@@ -45,6 +45,31 @@ async function checkPageExists(url) {
     }
 }
 
+// Fungsi untuk update jumlah pesan belum dibaca
+async function updateMessageCount() {
+    try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const snapshot = await db.collection('messages')
+            .where('receiverId', '==', user.uid)
+            .where('read', '==', false)
+            .get();
+        
+        const count = snapshot.size;
+        const messageCountElement = document.getElementById('messageCount');
+        if (count > 0) {
+            messageCountElement.textContent = count;
+            messageCountElement.style.display = 'inline-block';
+        } else {
+            messageCountElement.style.display = 'none';
+        }
+        console.log('Message count updated:', count);
+    } catch (error) {
+        console.error('Error updating message count:', error);
+    }
+}
+
 // Fungsi Login
 window.login = async function login() {
     try {
@@ -83,7 +108,7 @@ window.login = async function login() {
 
         const userData = JSON.parse(localStorage.getItem('user'));
         console.log('User data loaded:', userData);
-        document.getElementById('navbarUsername').textContent = userData.username;
+        document.getElementById('usernameText').textContent = userData.username;
         document.getElementById('loginContainer').style.display = 'none';
         document.getElementById('logoutButton').style.display = 'block';
         document.getElementById('navbarUsername').style.display = 'inline-block';
@@ -92,6 +117,9 @@ window.login = async function login() {
         if (userData.isAdmin) {
             document.getElementById('pendingUsersButton').style.display = 'inline-block';
         }
+
+        // Update jumlah pesan belum dibaca
+        await updateMessageCount();
 
         // Cek keberadaan halaman sebelum redirect
         const targetPage = userData.isAdmin ? '/admin.html' : '/user.html';
@@ -190,15 +218,18 @@ window.register = async function register() {
             return;
         }
 
-        await db.collection('pendingUsers').add({
+        // Simpan ke pendingUsers
+        const pendingUserData = {
             username,
             email,
             password,
             isAdmin: false,
             allowedTools: false,
             createdAt: { timestamp: new Date().toISOString() }
-        });
-        console.log('Registration submitted for:', email);
+        };
+        console.log('Saving pending user:', pendingUserData);
+        await db.collection('pendingUsers').add(pendingUserData);
+        console.log('Pending user saved successfully');
         alert('Registration submitted, awaiting admin approval');
         showLogin();
     } catch (error) {
@@ -284,18 +315,21 @@ window.addProject = async function addProject() {
         const addProjectMessage = document.getElementById('addProjectMessage');
         addProjectMessage.textContent = '';
 
-        console.log('Add project attempt:', { projectName, projectType, projectLink, startDate, endDate, image: !!projectImage });
+        console.log('Add project attempt:', { projectName, projectType, projectLink, projectDescription, startDate, endDate, hasImage: !!projectImage });
 
         const user = auth.currentUser;
         if (!user) {
             addProjectMessage.textContent = 'Please login first';
+            console.log('No authenticated user');
             showLogin();
             return;
         }
 
+        console.log('Authenticated user:', user.uid);
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
             addProjectMessage.textContent = 'User data not found';
+            console.log('User document not found for UID:', user.uid);
             await auth.signOut();
             return;
         }
@@ -304,6 +338,8 @@ window.addProject = async function addProject() {
         console.log('User data:', userData);
 
         if (!userData.allowedTools && projectType === 'Tools') {
+            addProjectMessage.textContent = 'You do not have permission to add Tools projects';
+            console.log('User lacks permission for Tools project');
             alert('You do not have permission to add Tools projects. Please request access from admin.');
             showMessageForm();
             return;
@@ -311,25 +347,28 @@ window.addProject = async function addProject() {
 
         if (!projectName || !projectType || !projectLink || !projectDescription || !startDate || !endDate) {
             addProjectMessage.textContent = 'Please fill all fields';
+            console.log('Missing required fields');
             return;
         }
 
         if (!projectLink.match(/^https?:\/\/.+/)) {
             addProjectMessage.textContent = 'Please enter a valid URL';
+            console.log('Invalid URL:', projectLink);
             return;
         }
 
         let imageUrl = '';
         if (projectImage) {
-            console.log('Uploading image:', projectImage.name, projectImage.size);
+            console.log('Uploading image:', projectImage.name, 'Size:', projectImage.size);
             if (projectImage.size > 5 * 1024 * 1024) {
                 addProjectMessage.textContent = 'Image size must be less than 5MB';
+                console.log('Image too large:', projectImage.size);
                 return;
             }
             const storageRef = storage.ref(`project_images/${user.uid}/${Date.now()}_${projectImage.name}`);
             const snapshot = await storageRef.put(projectImage);
             imageUrl = await snapshot.ref.getDownloadURL();
-            console.log('Image uploaded:', imageUrl);
+            console.log('Image uploaded successfully:', imageUrl);
         }
 
         const projectData = {
@@ -345,8 +384,9 @@ window.addProject = async function addProject() {
             createdAt: { timestamp: new Date().toISOString() }
         };
 
-        console.log('Saving project:', projectData);
+        console.log('Saving project to Firestore:', projectData);
         await db.collection('projects').add(projectData);
+        console.log('Project saved successfully');
         alert('Project added successfully');
         showProjects();
     } catch (error) {
@@ -943,6 +983,7 @@ window.sendMessage = async function sendMessage() {
 
         alert('Message sent successfully');
         document.getElementById('messageContent').value = '';
+        await updateMessageCount();
         showMessages();
     } catch (error) {
         console.error('Error sending message:', error);
@@ -995,7 +1036,14 @@ window.showMessages = async function showMessages() {
 
         const allMessages = [];
         snapshot.forEach(doc => allMessages.push({ id: doc.id, ...doc.data() }));
-        adminSnapshot.forEach(doc => allMessages.push({ id: doc.id, ...doc.data() }));
+        adminSnapshot.forEach(doc => {
+            const msg = { id: doc.id, ...doc.data() };
+            allMessages.push(msg);
+            // Tandai pesan sebagai dibaca
+            if (!msg.read && msg.receiverId === user.uid) {
+                db.collection('messages').doc(doc.id).update({ read: true });
+            }
+        });
         allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         messagesList.innerHTML = '';
@@ -1017,6 +1065,8 @@ window.showMessages = async function showMessages() {
             `;
             messagesList.appendChild(div);
         });
+
+        await updateMessageCount();
     } catch (error) {
         console.error('Error loading messages:', error);
         alert('Failed to load messages: ' + error.message);
@@ -1065,6 +1115,7 @@ window.sendReply = async function sendReply(messageId) {
         });
 
         alert('Reply sent successfully');
+        await updateMessageCount();
         showMessages();
     } catch (error) {
         console.error('Error sending reply:', error);
@@ -1140,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const userData = JSON.parse(localStorage.getItem('user'));
                 console.log('User loaded:', userData);
-                document.getElementById('navbarUsername').textContent = userData.username;
+                document.getElementById('usernameText').textContent = userData.username;
                 document.getElementById('loginContainer').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'block';
                 document.getElementById('navbarUsername').style.display = 'inline-block';
@@ -1149,6 +1200,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userData.isAdmin) {
                     document.getElementById('pendingUsersButton').style.display = 'inline-block';
                 }
+
+                // Update jumlah pesan belum dibaca
+                await updateMessageCount();
             } else {
                 console.log('No user signed in');
                 localStorage.removeItem('user');
