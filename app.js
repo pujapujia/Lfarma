@@ -22,6 +22,7 @@ try {
 }
 const db = firebase.firestore();
 const auth = firebase.auth();
+const storage = firebase.storage();
 
 // Cek koneksi Firestore
 db.collection('users').get().then(snapshot => {
@@ -83,12 +84,15 @@ window.login = async function login() {
         const userData = JSON.parse(localStorage.getItem('user'));
         console.log('User data loaded:', userData);
         document.getElementById('profileUsername').textContent = userData.username;
+        document.getElementById('navbarUsername').textContent = userData.username;
         document.getElementById('loginContainer').style.display = 'none';
         document.getElementById('profile').style.display = 'block';
         document.getElementById('logoutButton').style.display = 'block';
+        document.getElementById('navbarUsername').style.display = 'inline-block';
+        document.getElementById('messagesButton').style.display = 'inline-block';
         document.getElementById('actionsContainer').style.display = 'block';
         if (userData.isAdmin) {
-            document.getElementById('pendingUsersButton').style.display = 'block';
+            document.getElementById('pendingUsersButton').style.display = 'inline-block';
         }
 
         // Cek keberadaan halaman sebelum redirect
@@ -132,8 +136,10 @@ window.logout = async function logout() {
         localStorage.removeItem('user');
         document.getElementById('profile').style.display = 'none';
         document.getElementById('logoutButton').style.display = 'none';
-        document.getElementById('actionsContainer').style.display = 'none';
+        document.getElementById('navbarUsername').style.display = 'none';
+        document.getElementById('messagesButton').style.display = 'none';
         document.getElementById('pendingUsersButton').style.display = 'none';
+        document.getElementById('actionsContainer').style.display = 'none';
         document.getElementById('loginContainer').style.display = 'block';
         window.location.href = '/';
     } catch (error) {
@@ -261,6 +267,7 @@ window.addProject = async function addProject() {
         const projectDescription = document.getElementById('projectDescription').value.trim();
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
+        const projectImage = document.getElementById('projectImage').files[0];
         const addProjectMessage = document.getElementById('addProjectMessage');
         addProjectMessage.textContent = '';
 
@@ -295,6 +302,17 @@ window.addProject = async function addProject() {
             return;
         }
 
+        let imageUrl = '';
+        if (projectImage) {
+            if (projectImage.size > 5 * 1024 * 1024) {
+                addProjectMessage.textContent = 'Image size must be less than 5MB';
+                return;
+            }
+            const storageRef = storage.ref(`project_images/${user.uid}/${Date.now()}_${projectImage.name}`);
+            const snapshot = await storageRef.put(projectImage);
+            imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
         const projectData = {
             name: projectName,
             type: projectType,
@@ -304,6 +322,7 @@ window.addProject = async function addProject() {
             endDate,
             status: 'Berjalan',
             addedBy: userData.username,
+            imageUrl: imageUrl || '',
             createdAt: { timestamp: new Date().toISOString() }
         };
 
@@ -366,6 +385,7 @@ async function loadProjects(type = '') {
             div.className = 'col-md-4 mb-4';
             div.innerHTML = `
                 <div class="card h-100">
+                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
                     <div class="card-body">
                         <h5 class="card-title">${project.name}</h5>
                         <p class="card-text"><strong>Type:</strong> ${project.type}</p>
@@ -497,6 +517,11 @@ window.updateProject = async function updateProject() {
 window.deleteProject = async function deleteProject(projectId) {
     if (!confirm('Are you sure you want to delete this project?')) return;
     try {
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (projectDoc.exists && projectDoc.data().imageUrl) {
+            const imageRef = storage.refFromURL(projectDoc.data().imageUrl);
+            await imageRef.delete().catch(error => console.warn('Error deleting image:', error));
+        }
         await db.collection('projects').doc(projectId).delete();
         alert('Project deleted successfully');
         loadProjects();
@@ -771,6 +796,13 @@ window.showUserProjects = async function showUserProjects() {
         document.getElementById('userProjectsContainer').style.display = 'block';
         document.getElementById('messagesContainer').style.display = 'none';
         document.getElementById('messageContainer').style.display = 'none';
+        document.getElementById('projectsContainer').style.display = 'none';
+        document.getElementById('publicContainer').style.display = 'none';
+        document.getElementById('pendingUsersContainer').style.display = 'none';
+        document.getElementById('addProjectForm').style.display = 'none';
+        document.getElementById('editProjectForm').style.display = 'none';
+        document.getElementById('tutorialContainer').style.display = 'none';
+        document.getElementById('typeFilterContainer').style.display = 'none';
         const userProjectsList = document.getElementById('userProjectsList');
         userProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
         const snapshot = await db.collection('projects').where('addedBy', '==', userData.username).get();
@@ -785,11 +817,14 @@ window.showUserProjects = async function showUserProjects() {
             div.className = 'col-md-4 mb-4';
             div.innerHTML = `
                 <div class="card h-100">
+                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
                     <div class="card-body">
                         <h5 class="card-title">${project.name}</h5>
                         <p class="card-text"><strong>Type:</strong> ${project.type}</p>
                         <p class="card-text"><strong>Status:</strong> ${project.status}</p>
-                        <button class="btn btn-primary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
+                        <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
+                        <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
+                        <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
                     </div>
                 </div>
             `;
@@ -811,6 +846,13 @@ window.showAddProjectForm = function showAddProjectForm() {
     document.getElementById('actionsContainer').style.display = 'none';
     document.getElementById('addProjectForm').style.display = 'block';
     document.getElementById('addProjectMessage').textContent = '';
+    document.getElementById('projectName').value = '';
+    document.getElementById('projectType').value = 'Testnet';
+    document.getElementById('projectLink').value = '';
+    document.getElementById('projectDescription').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('projectImage').value = '';
 };
 
 // Fungsi Show Message Form
@@ -1040,6 +1082,7 @@ async function loadPublicProjects() {
             div.className = 'col-md-4 mb-4';
             div.innerHTML = `
                 <div class="card h-100">
+                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
                     <div class="card-body">
                         <h5 class="card-title">${project.name}</h5>
                         <p class="card-text"><strong>Type:</strong> ${project.type}</p>
@@ -1078,12 +1121,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const userData = JSON.parse(localStorage.getItem('user'));
                 console.log('User loaded:', userData);
                 document.getElementById('profileUsername').textContent = userData.username;
+                document.getElementById('navbarUsername').textContent = userData.username;
                 document.getElementById('loginContainer').style.display = 'none';
                 document.getElementById('profile').style.display = 'block';
                 document.getElementById('logoutButton').style.display = 'block';
+                document.getElementById('navbarUsername').style.display = 'inline-block';
+                document.getElementById('messagesButton').style.display = 'inline-block';
                 document.getElementById('actionsContainer').style.display = 'block';
                 if (userData.isAdmin) {
-                    document.getElementById('pendingUsersButton').style.display = 'block';
+                    document.getElementById('pendingUsersButton').style.display = 'inline-block';
                 }
             } else {
                 console.log('No user signed in');
