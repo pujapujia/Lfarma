@@ -4,118 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard - Liquidity Farm</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             min-height: 100vh;
         }
-        .header {
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+        .navbar {
+            background: rgba(0, 0, 0, 0.8);
         }
-        .header h2 {
-            margin: 0 auto;
-        }
-        .logout-button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            background: #ff4444;
-            color: white;
-            cursor: pointer;
-        }
-        .logout-button:hover {
-            background: #cc0000;
-        }
-        .user-projects-container {
-            width: 100%;
-            max-width: 1200px;
-            margin-top: 20px;
-        }
-        .user-projects-list {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .box {
+        .card {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-        }
-        .box:hover {
-            transform: scale(1.05);
-        }
-        .project-details div {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .project-details label {
-            font-weight: bold;
-            flex: 0 0 40%;
-            text-align: left;
-        }
-        .project-details .value {
-            color: #00ddeb;
-            flex: 0 0 55%;
-            text-align: left;
-        }
-        .button {
-            padding: 10px 20px;
             border: none;
-            border-radius: 5px;
-            background: #ff00ff;
-            color: white;
-            cursor: pointer;
-            margin: 5px;
         }
-        .button:hover {
+        .btn-primary {
+            background: #ff00ff;
+            border: none;
+        }
+        .btn-primary:hover {
             background: #e600e6;
         }
-        @media (max-width: 768px) {
-            .user-projects-list {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .btn-danger {
+            background: #ff4444;
         }
-        @media (max-width: 480px) {
-            .user-projects-list {
-                grid-template-columns: 1fr;
-            }
+        .btn-danger:hover {
+            background: #cc0000;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h2>User Dashboard</h2>
-        <button class="logout-button" onclick="logout()">Logout</button>
-    </div>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Liquidity Farm</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <button class="btn btn-danger" onclick="logout()">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-    <div class="user-projects-container" id="userProjectsContainer">
-        <h2>My Projects</h2>
-        <div class="user-projects-list" id="userProjectsList"></div>
-        <button class="button" onclick="window.location.href='/'">Back to Home</button>
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="card p-4">
+            <h2>My Projects</h2>
+            <div class="row" id="userProjectsList"></div>
+            <a href="/" class="btn btn-secondary w-100 mt-3">Back to Home</a>
+        </div>
     </div>
 
     <!-- Firebase CDN -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-
-    <!-- Load JavaScript -->
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- App JS -->
     <script src="/app.js"></script>
+    <script>
+        // Auto tampilkan My Projects
+        document.addEventListener('DOMContentLoaded', () => {
+            showUserProjects();
+        });
+    </script>
 </body>
 </html>

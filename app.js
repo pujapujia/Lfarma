@@ -1,6 +1,7 @@
 // Nonaktifkan Metamask untuk hindari error inpage.js
 window.ethereum = null;
 
+// Firebase Config (GANTI DENGAN CONFIG DARI FIREBASE CONSOLE)
 const firebaseConfig = {
     apiKey: "AIzaSyCTYu51tAUlNS_11gcIA6yzNS1ziUzmglU",
     authDomain: "lfarm-e11ad.firebaseapp.com",
@@ -33,9 +34,12 @@ db.collection('users').get().then(snapshot => {
 // Fungsi untuk cek keberadaan halaman
 async function checkPageExists(url) {
   try {
+    console.log('Checking page existence:', url);
     const response = await fetch(url, { method: 'HEAD' });
+    console.log('Page check result:', url, response.ok);
     return response.ok;
-  } catch {
+  } catch (error) {
+    console.error('Error checking page:', url, error);
     return false;
   }
 }
@@ -77,6 +81,7 @@ window.login = async function login() {
     }
 
     const userData = JSON.parse(localStorage.getItem('user'));
+    console.log('User data loaded:', userData);
     document.getElementById('profileUsername').textContent = userData.username;
     document.getElementById('loginContainer').style.display = 'none';
     document.getElementById('profile').style.display = 'block';
@@ -88,12 +93,14 @@ window.login = async function login() {
 
     // Cek keberadaan halaman sebelum redirect
     const targetPage = userData.isAdmin ? '/admin.html' : '/user.html';
-    const pageExists = await checkPageExists(targetPage);
+    const pageExists = await checkPageExists(window.location.origin + targetPage);
     if (pageExists) {
+      console.log('Redirecting to:', targetPage);
       window.location.href = targetPage;
     } else {
       console.warn(`Page ${targetPage} not found, redirecting to home`);
-      window.location.href = '/'; // Fallback ke index.html
+      alert(`Page ${targetPage} not found. Redirecting to home.`);
+      window.location.href = '/';
     }
   } catch (error) {
     console.error('Error logging in:', error);
@@ -314,7 +321,7 @@ window.showProjects = function showProjects() {
   document.getElementById('userProjectsContainer').style.display = 'none';
   document.getElementById('pendingUsersContainer').style.display = 'none';
   document.getElementById('typeFilterContainer').style.display = 'block';
-  document.getElementById('projectsContainer').style.display = 'grid';
+  document.getElementById('projectsContainer').style.display = 'flex';
   loadProjects();
 };
 
@@ -322,30 +329,33 @@ window.showProjects = function showProjects() {
 async function loadProjects(type = '') {
   try {
     const projectsContainer = document.getElementById('projectsContainer');
-    projectsContainer.innerHTML = '';
+    projectsContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
     let q = db.collection('projects');
     if (type) {
       q = q.where('type', '==', type);
     }
     const snapshot = await q.get();
+    projectsContainer.innerHTML = '';
     if (snapshot.empty) {
-      projectsContainer.innerHTML = '<p>No projects found</p>';
+      projectsContainer.innerHTML = '<p class="text-center">No projects found</p>';
       return;
     }
     snapshot.forEach(doc => {
       const project = doc.data();
       const div = document.createElement('div');
-      div.className = 'box';
+      div.className = 'col-md-4 mb-4';
       div.innerHTML = `
-        <h3>${project.name}</h3>
-        <div class="project-details">
-          <div><label>Type:</label><span class="value">${project.type}</span></div>
-          <div><label>Status:</label><span class="value">${project.status}</span></div>
-          <div><label>Added By:</label><span class="value">${project.addedBy}</span></div>
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">${project.name}</h5>
+            <p class="card-text"><strong>Type:</strong> ${project.type}</p>
+            <p class="card-text"><strong>Status:</strong> ${project.status}</p>
+            <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
+            <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
+            <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
+            <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
+          </div>
         </div>
-        <button class="edit-button" onclick="showEditProjectForm('${doc.id}')">Edit</button>
-        <button class="delete-button" onclick="deleteProject('${doc.id}')">Delete</button>
-        <button class="button" onclick="showTutorial('${doc.id}')">View Tutorial</button>
       `;
       projectsContainer.appendChild(div);
     });
@@ -494,24 +504,25 @@ window.showPendingUsers = async function showPendingUsers() {
     document.getElementById('pendingUsersContainer').style.display = 'block';
     const pendingUsersList = document.getElementById('pendingUsersList');
     const approvedUsersList = document.getElementById('approvedUsersList');
-    pendingUsersList.innerHTML = '';
-    approvedUsersList.innerHTML = '';
+    pendingUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    approvedUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
     // Load pending users
     const pendingSnapshot = await db.collection('pendingUsers').get();
     console.log('Pending users snapshot size:', pendingSnapshot.size);
+    pendingUsersList.innerHTML = '';
     if (pendingSnapshot.empty) {
-      pendingUsersList.innerHTML = '<p>No pending users</p>';
+      pendingUsersList.innerHTML = '<p class="text-center">No pending users</p>';
     } else {
       pendingSnapshot.forEach(doc => {
         const userData = doc.data();
         const div = document.createElement('div');
-        div.className = 'pending-user';
+        div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
         div.innerHTML = `
           <span>${userData.username} (${userData.email})</span>
           <div>
-            <button class="approve-button" onclick="approveUser('${doc.id}')">Approve</button>
-            <button class="reject-button" onclick="rejectUser('${doc.id}')">Reject</button>
+            <button class="btn btn-success me-2" onclick="approveUser('${doc.id}')">Approve</button>
+            <button class="btn btn-danger" onclick="rejectUser('${doc.id}')">Reject</button>
           </div>
         `;
         pendingUsersList.appendChild(div);
@@ -521,20 +532,21 @@ window.showPendingUsers = async function showPendingUsers() {
     // Load approved users
     const approvedSnapshot = await db.collection('users').get();
     console.log('Approved users snapshot size:', approvedSnapshot.size);
+    approvedUsersList.innerHTML = '';
     if (approvedSnapshot.empty) {
-      approvedUsersList.innerHTML = '<p>No approved users</p>';
+      approvedUsersList.innerHTML = '<p class="text-center">No approved users</p>';
     } else {
       approvedSnapshot.forEach(doc => {
         const userData = doc.data();
         const div = document.createElement('div');
-        div.className = 'approved-user';
+        div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
         div.innerHTML = `
           <span>${userData.username} (${userData.email})</span>
           <div>
-            <button class="button" onclick="toggleToolsAccess('${doc.id}', ${!userData.allowedTools})">
+            <button class="btn btn-primary me-2" onclick="toggleToolsAccess('${doc.id}', ${!userData.allowedTools})">
               ${userData.allowedTools ? 'Disable Tools' : 'Enable Tools'}
             </button>
-            <button class="remove-button" onclick="removeUser('${doc.id}', '${userData.username}')">Remove</button>
+            <button class="btn btn-danger" onclick="removeUser('${doc.id}', '${userData.username}')">Remove</button>
           </div>
         `;
         approvedUsersList.appendChild(div);
@@ -680,23 +692,26 @@ window.showUserProjects = async function showUserProjects() {
     document.getElementById('actionsContainer').style.display = 'none';
     document.getElementById('userProjectsContainer').style.display = 'block';
     const userProjectsList = document.getElementById('userProjectsList');
-    userProjectsList.innerHTML = '';
+    userProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
     const snapshot = await db.collection('projects').where('addedBy', '==', userData.username).get();
+    userProjectsList.innerHTML = '';
     if (snapshot.empty) {
-      userProjectsList.innerHTML = '<p>No projects found</p>';
+      userProjectsList.innerHTML = '<p class="text-center">No projects found</p>';
       return;
     }
     snapshot.forEach(doc => {
       const project = doc.data();
       const div = document.createElement('div');
-      div.className = 'box';
+      div.className = 'col-md-4 mb-4';
       div.innerHTML = `
-        <h3>${project.name}</h3>
-        <div class="project-details">
-          <div><label>Type:</label><span class="value">${project.type}</span></div>
-          <div><label>Status:</label><span class="value">${project.status}</span></div>
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">${project.name}</h5>
+            <p class="card-text"><strong>Type:</strong> ${project.type}</p>
+            <p class="card-text"><strong>Status:</strong> ${project.status}</p>
+            <button class="btn btn-primary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
+          </div>
         </div>
-        <button class="button" onclick="showTutorial('${doc.id}')">View Tutorial</button>
       `;
       userProjectsList.appendChild(div);
     });
@@ -722,23 +737,26 @@ window.showAddProjectForm = function showAddProjectForm() {
 async function loadPublicProjects() {
   try {
     const publicProjectsList = document.getElementById('publicProjectsList');
-    publicProjectsList.innerHTML = '';
+    publicProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
     const snapshot = await db.collection('projects').where('status', '==', 'Berjalan').get();
+    publicProjectsList.innerHTML = '';
     if (snapshot.empty) {
-      publicProjectsList.innerHTML = '<p>No public projects</p>';
+      publicProjectsList.innerHTML = '<p class="text-center">No public projects</p>';
       return;
     }
     snapshot.forEach(doc => {
       const project = doc.data();
       const div = document.createElement('div');
-      div.className = 'box';
+      div.className = 'col-md-4 mb-4';
       div.innerHTML = `
-        <h3>${project.name}</h3>
-        <div class="project-details">
-          <div><label>Type:</label><span class="value">${project.type}</span></div>
-          <div><label>Added By:</label><span class="value">${project.addedBy}</span></div>
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">${project.name}</h5>
+            <p class="card-text"><strong>Type:</strong> ${project.type}</p>
+            <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
+            <button class="btn btn-primary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
+          </div>
         </div>
-        <button class="button" onclick="showTutorial('${doc.id}')">View Tutorial</button>
       `;
       publicProjectsList.appendChild(div);
     });
@@ -776,7 +794,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('actionsContainer').style.display = 'block';
         if (userData.isAdmin) {
           document.getElementById('pendingUsersButton').style.display = 'block';
-          showPendingUsers(); // Auto tampilkan manage users di admin.html
         }
       } else {
         console.log('No user signed in');
