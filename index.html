@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIQUIDITY FARM</title>
+    <style>
+        /* CSS sama seperti sebelumnya */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+        .header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-top: 80px;
+        }
+        .header h2 {
+            margin: 0 auto;
+        }
+        .back-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #ff4444;
+            color: white;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background: #cc0000;
+        }
+        .profile-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .profile {
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        .profile:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .logout-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #ff4444;
+            color: white;
+            cursor: pointer;
+        }
+        .logout-button:hover {
+            background: #cc0000;
+        }
+        .visitor-counter {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .login-container {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 250px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+        .login-container h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+        }
+        .login-container input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+        }
+        .login-container .button {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .login-container p {
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .error-message {
+            color: #ff4444;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .forgot-password {
+            color: #00ddeb;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 12px;
+        }
+        .forgot-password:hover {
+            color: #00b7c2;
+        }
+        .reset-password-container, .register-container {
+            width: 100%;
+            max-width: 300px;
+            margin-top: 100px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .public-projects-preview {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .public-projects-preview h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .public-projects-list {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+            padding: 0;
+        }
+        .actions-container, .add-project-form, .projects-container, .edit-project-form, .tutorial-container, .type-filter-container, .pending-users-container, .public-container, .user-projects-container {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .projects-container, .public-container, .user-projects-container, .public-projects-list {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+            padding: 0;
+        }
+        .type-filter-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .type-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            width: 120px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+        .type-box:hover {
+            transform: scale(1.05);
+        }
+        .type-box.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .type-box.disabled::after {
+            content: "Locked";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            min-width: 200px;
+            height: auto;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        .box.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .box.disabled::after {
+            content: "Locked";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .box img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .box:hover:not(.disabled) {
+            transform: scale(1.05);
+        }
+        .box h3 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .project-details div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .project-details label {
+            font-weight: bold;
+            flex: 0 0 40%;
+            text-align: left;
+        }
+        .project-details .value {
+            color: #00ddeb;
+            flex: 0 0 55%;
+            text-align: left;
+        }
+        .tutorial-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: left;
+        }
+        .tutorial-container p {
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .pending-users-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .pending-user, .approved-user {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-container input, .input-container select, .input-container textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .input-container select option {
+            background: #16213e;
+            color: white;
+        }
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #ff00ff;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #e600e6;
+        }
+        .edit-button {
+            background: #00ddeb;
+            padding: 5px 10px;
+            margin: 5px;
+        }
+        .edit-button:hover {
+            background: #00b7c2;
+        }
+        .delete-button, .remove-button {
+            background: #ff4444;
+            padding: 5px 10px;
+            margin: 5px;
+        }
+        .delete-button:hover, .remove-button:hover {
+            background: #cc0000;
+        }
+        .approve-button {
+            background: #00ff00;
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
+        .approve-button:hover {
+            background: #00cc00;
+        }
+        .reject-button {
+            background: #ff4444;
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
+        .reject-button:hover {
+            background: #cc0000;
+        }
+        .link-button {
+            background: #00ddeb;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            color: white;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .link-button:hover {
+            background: #00b7c2;
+        }
+        @media (max-width: 768px) {
+            .projects-container, .public-container, .user-projects-container, .public-projects-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .type-filter-container {
+                flex-wrap: wrap;
+            }
+            .type-box {
+                width: 100px;
+            }
+        }
+        @media (max-width: 480px) {
+            .projects-container, .public-container, .user-projects-container, .public-projects-list {
+                grid-template-columns: 1fr;
+            }
+            .type-filter-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .type-box {
+                width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <button class="back-button" id="backButton" style="display: none;" onclick="goBack()">Back</button>
+        <h2>LIQUIDITY FARM</h2>
+        <div class="profile-container">
+            <div class="profile" id="profile" style="display: none;" onclick="showUserProjects()">
+                <span id="profileUsername"></span>
+            </div>
+            <button class="logout-button" id="logoutButton" style="display: none;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <!-- Login Section -->
+    <div class="login-container" id="loginContainer">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button class="button" onclick="login()">Login</button>
+        <p class="error-message" id="loginMessage"></p>
+        <button class="button" onclick="showRegisterForm()">Register</button>
+        <p class="forgot-password" onclick="showForgotPassword()">Forgot Password?</p>
+    </div>
+
+    <!-- Register Section -->
+    <div class="register-container" id="registerContainer" style="display: none;">
+        <h2>Create New Account</h2>
+        <div class="input-container">
+            <input type="text" id="registerUsername" placeholder="Username">
+            <input type="email" id="registerEmail" placeholder="Email">
+            <input type="password" id="registerPassword" placeholder="Password">
+        </div>
+        <p class="error-message" id="registerMessage"></p>
+        <button class="button" onclick="register()">Register</button>
+        <button class="button" onclick="showLogin()">Cancel</button>
+    </div>
+
+    <!-- Forgot Password Section -->
+    <div class="reset-password-container" id="resetPasswordContainer" style="display: none;">
+        <h2>Reset Password</h2>
+        <div class="input-container">
+            <input type="email" id="resetEmail" placeholder="Email">
+        </div>
+        <p class="error-message" id="resetMessage"></p>
+        <button class="button" onclick="resetPassword()">Send Reset Link</button>
+        <button class="button" onclick="showLogin()">Cancel</button>
+    </div>
+
+    <!-- Public Projects Preview -->
+    <div class="public-projects-preview" id="publicProjectsPreview">
+        <h2>Public Projects</h2>
+        <div class="public-projects-list" id="publicProjectsList"></div>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="actions-container" id="actionsContainer" style="display: none;">
+        <button class="button" onclick="showAddProjectForm()">Add Project</button>
+        <button class="button" onclick="showProjects()">View Projects</button>
+        <button class="button" onclick="showPendingUsers()" id="pendingUsersButton" style="display: none;">Manage Users</button>
+    </div>
+
+    <!-- Manage Users -->
+    <div class="pending-users-container" id="pendingUsersContainer" style="display: none;">
+        <h2>Manage Users</h2>
+        <p class="error-message" id="manageUsersMessage"></p>
+        <h3>New Registrations</h3>
+        <div id="pendingUsersList"></div>
+        <h3>Approved Users</h3>
+        <div id="approvedUsersList"></div>
+        <button class="button" onclick="showProjects()">Back</button>
+    </div>
+
+    <!-- Add Project Form -->
+    <div class="add-project-form" id="addProjectForm" style="display: none;">
+        <h2>Add New Project</h2>
+        <div class="input-container">
+            <input type="text" id="projectName" placeholder="Project Name">
+            <select id="projectType">
+                <option value="" disabled selected>Select Project Type</option>
+                <option value="Retro">Retro</option>
+                <option value="Testnet">Testnet</option>
+                <option value="Garapan">Garapan</option>
+                <option value="Bot">Bot</option>
+                <option value="Tools">Tools</option>
+            </select>
+            <input type="url" id="projectLink" placeholder="Project Link">
+            <textarea id="projectDescription" placeholder="Project Description"></textarea>
+            <input type="date" id="startDate" placeholder="Start Date">
+            <input type="date" id="endDate" placeholder="End Date">
+            <input type="file" id="projectImage">
+        </div>
+        <p class="error-message" id="addProjectMessage"></p>
+        <button class="button" onclick="addProject()">Add Project</button>
+        <button class="button" onclick="showProjects()">Cancel</button>
+    </div>
+
+    <!-- Edit Project Form -->
+    <div class="edit-project-form" id="editProjectForm" style="display: none;">
+        <h2>Edit Project</h2>
+        <div class="input-container">
+            <input type="text" id="editProjectName" placeholder="Project Name">
+            <select id="editProjectType">
+                <option value="" disabled selected>Select Project Type</option>
+                <option value="Retro">Retro</option>
+                <option value="Testnet">Testnet</option>
+                <option value="Garapan">Garapan</option>
+                <option value="Bot">Bot</option>
+                <option value="Tools">Tools</option>
+            </select>
+            <input type="url" id="editProjectLink" placeholder="Project Link">
+            <textarea id="editProjectDescription" placeholder="Project Description"></textarea>
+            <input type="date" id="editStartDate" placeholder="Start Date">
+            <input type="date" id="editEndDate" placeholder="End Date">
+            <select id="editProjectStatus">
+                <option value="Berjalan">Ongoing</option>
+                <option value="End">Ended</option>
+            </select>
+            <input type="file" id="editProjectImage">
+        </div>
+        <p class="error-message" id="editProjectMessage"></p>
+        <button class="button" onclick="updateProject()">Save Changes</button>
+        <button class="button" onclick="showProjects()">Cancel</button>
+    </div>
+
+    <!-- Tutorial Page -->
+    <div class="tutorial-container" id="tutorialContainer" style="display: none;">
+        <h2>Project Tutorial: <span id="tutorialProjectName"></span></h2>
+        <p><strong>Project Link:</strong> <a id="tutorialProjectLink" href="#" target="_blank" class="link-button">Visit Project Link</a></p>
+        <p><strong>How to Work on It:</strong></p>
+        <p id="tutorialDescription"></p>
+        <button class="button" onclick="showProjects()">Back</button>
+    </div>
+
+    <!-- Public Projects Page -->
+    <div class="public-container" id="publicContainer" style="display: none;">
+        <h2>Public Projects</h2>
+        <div id="publicProjectsList"></div>
+        <button class="button" onclick="showLogin()">Back</button>
+    </div>
+
+    <!-- User Projects Page -->
+    <div class="user-projects-container" id="userProjectsContainer" style="display: none;">
+        <h2>My Projects</h2>
+        <div id="userProjectsList"></div>
+        <button class="button" onclick="showProjects()">Back</button>
+    </div>
+
+    <!-- Project Type Filter -->
+    <div class="type-filter-container" id="typeFilterContainer" style="display: none;">
+        <div class="type-box" onclick="filterProjectsByType('Retro')"><h3>Retro</h3></div>
+        <div class="type-box" onclick="filterProjectsByType('Testnet')"><h3>Testnet</h3></div>
+        <div class="type-box" onclick="filterProjectsByType('Garapan')"><h3>Garapan</h3></div>
+        <div class="type-box" onclick="filterProjectsByType('Bot')"><h3>Bot</h3></div>
+        <div class="type-box" id="toolsBox" onclick="filterProjectsByType('Tools')"><h3>Tools</h3></div>
+    </div>
+
+    <!-- Projects Container -->
+    <div class="projects-container" id="projectsContainer" style="display: none;"></div>
+
+    <!-- Visitor Counter -->
+    <div class="visitor-counter" id="visitorCounter">Visitors: 0</div>
+
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
+    <!-- Load JavaScript -->
+    <script src="/app.js"></script>
+
+    <!-- Debug Script -->
+    <script>
+        window.onload = function() {
+            if (typeof window.login === 'undefined') {
+                console.error('Login function not defined. Check if app.js is loaded correctly.');
+            } else {
+                console.log('Login function loaded successfully');
+            }
+            const user = localStorage.getItem('user');
+            if (user) {
+                console.log('User in localStorage:', JSON.parse(user));
+            } else {
+                console.log('No user in localStorage');
+            }
+        };
+    </script>
+</body>
+</html>
