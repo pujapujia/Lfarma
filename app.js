@@ -302,6 +302,58 @@ window.showLogin = function showLogin() {
     document.getElementById('resetMessage').textContent = '';
 };
 
+// Fungsi Show Add Project Form
+window.showAddProjectForm = async function showAddProjectForm() {
+    try {
+        const user = auth.currentUser;
+        const projectTypeSelect = document.getElementById('projectType');
+        const addProjectMessage = document.getElementById('addProjectMessage');
+
+        // Reset form
+        document.getElementById('actionsContainer').style.display = 'none';
+        document.getElementById('addProjectForm').style.display = 'block';
+        addProjectMessage.textContent = '';
+        document.getElementById('projectName').value = '';
+        document.getElementById('projectType').value = 'Testnet';
+        document.getElementById('projectLink').value = '';
+        document.getElementById('projectDescription').value = '';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        document.getElementById('projectImage').value = '';
+
+        // Set dropdown options berdasarkan izin user
+        projectTypeSelect.innerHTML = `
+            <option value="Testnet">Testnet</option>
+            <option value="Retro">Retro</option>
+            <option value="Garapan">Garapan</option>
+        `;
+        if (user) {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                if (userData.allowedTools || userData.isAdmin) {
+                    projectTypeSelect.innerHTML += `<option value="Tools">Tools</option>`;
+                    console.log('Tools option added for user:', userData.username);
+                } else {
+                    console.log('Tools option hidden for user:', userData.username);
+                }
+            } else {
+                addProjectMessage.textContent = 'User data not found';
+                await auth.signOut();
+                showLogin();
+                return;
+            }
+        } else {
+            addProjectMessage.textContent = 'Please login first';
+            showLogin();
+            return;
+        }
+    } catch (error) {
+        console.error('Error showing add project form:', error);
+        document.getElementById('addProjectMessage').textContent = 'Error: ' + error.message;
+    }
+};
+
 // Fungsi Add Project
 window.addProject = async function addProject() {
     try {
@@ -315,7 +367,15 @@ window.addProject = async function addProject() {
         const addProjectMessage = document.getElementById('addProjectMessage');
         addProjectMessage.textContent = '';
 
-        console.log('Add project attempt:', { projectName, projectType, projectLink, projectDescription, startDate, endDate, hasImage: !!projectImage });
+        console.log('Add project attempt:', {
+            projectName,
+            projectType,
+            projectLink,
+            projectDescription,
+            startDate,
+            endDate,
+            hasImage: !!projectImage
+        });
 
         const user = auth.currentUser;
         if (!user) {
@@ -331,13 +391,15 @@ window.addProject = async function addProject() {
             addProjectMessage.textContent = 'User data not found';
             console.log('User document not found for UID:', user.uid);
             await auth.signOut();
+            showLogin();
             return;
         }
 
         const userData = userDoc.data();
         console.log('User data:', userData);
 
-        if (!userData.allowedTools && projectType === 'Tools') {
+        // Validasi izin untuk tipe Tools
+        if (projectType === 'Tools' && !userData.allowedTools && !userData.isAdmin) {
             addProjectMessage.textContent = 'You do not have permission to add Tools projects';
             console.log('User lacks permission for Tools project');
             alert('You do not have permission to add Tools projects. Please request access from admin.');
@@ -345,6 +407,7 @@ window.addProject = async function addProject() {
             return;
         }
 
+        // Validasi input
         if (!projectName || !projectType || !projectLink || !projectDescription || !startDate || !endDate) {
             addProjectMessage.textContent = 'Please fill all fields';
             console.log('Missing required fields');
@@ -357,18 +420,36 @@ window.addProject = async function addProject() {
             return;
         }
 
+        // Validasi tanggal
+        if (new Date(startDate) > new Date(endDate)) {
+            addProjectMessage.textContent = 'End date must be after start date';
+            console.log('Invalid date range:', { startDate, endDate });
+            return;
+        }
+
         let imageUrl = '';
         if (projectImage) {
-            console.log('Uploading image:', projectImage.name, 'Size:', projectImage.size);
+            console.log('Uploading image:', projectImage.name, 'Size:', projectImage.size, 'Type:', projectImage.type);
             if (projectImage.size > 5 * 1024 * 1024) {
                 addProjectMessage.textContent = 'Image size must be less than 5MB';
                 console.log('Image too large:', projectImage.size);
                 return;
             }
+            if (!['image/jpeg', 'image/png', 'image/gif'].includes(projectImage.type)) {
+                addProjectMessage.textContent = 'Only JPG, PNG, or GIF images are allowed';
+                console.log('Invalid image type:', projectImage.type);
+                return;
+            }
             const storageRef = storage.ref(`project_images/${user.uid}/${Date.now()}_${projectImage.name}`);
-            const snapshot = await storageRef.put(projectImage);
-            imageUrl = await snapshot.ref.getDownloadURL();
-            console.log('Image uploaded successfully:', imageUrl);
+            try {
+                const snapshot = await storageRef.put(projectImage);
+                imageUrl = await snapshot.ref.getDownloadURL();
+                console.log('Image uploaded successfully:', imageUrl);
+            } catch (error) {
+                console.error('Image upload failed:', error);
+                addProjectMessage.textContent = 'Failed to upload image: ' + error.message;
+                return;
+            }
         }
 
         const projectData = {
@@ -391,7 +472,21 @@ window.addProject = async function addProject() {
         showProjects();
     } catch (error) {
         console.error('Error adding project:', error);
-        document.getElementById('addProjectMessage').textContent = 'Error: ' + error.message;
+        let message = 'Failed to add project: ';
+        switch (error.code) {
+            case 'permission-denied':
+                message += 'You do not have permission to add projects. Check Firebase rules.';
+                break;
+            case 'storage/unauthorized':
+                message += 'Unauthorized to upload image. Check Firebase Storage rules.';
+                break;
+            case 'storage/canceled':
+                message += 'Image upload canceled.';
+                break;
+            default:
+                message += error.message;
+        }
+        addProjectMessage.textContent = message;
     }
 };
 
@@ -899,20 +994,6 @@ window.showUserProjects = async function showUserProjects() {
 // Fungsi Go Back
 window.goBack = function goBack() {
     showProjects();
-};
-
-// Fungsi Show Add Project Form
-window.showAddProjectForm = function showAddProjectForm() {
-    document.getElementById('actionsContainer').style.display = 'none';
-    document.getElementById('addProjectForm').style.display = 'block';
-    document.getElementById('addProjectMessage').textContent = '';
-    document.getElementById('projectName').value = '';
-    document.getElementById('projectType').value = 'Testnet';
-    document.getElementById('projectLink').value = '';
-    document.getElementById('projectDescription').value = '';
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
-    document.getElementById('projectImage').value = '';
 };
 
 // Fungsi Show Message Form

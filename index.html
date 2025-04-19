@@ -1,338 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquidity Farm</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bagian lain sama seperti sebelumnya -->
     <style>
-        body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: white;
-            min-height: 100vh;
-        }
-        .navbar {
-            background: rgba(0, 0, 0, 0.8);
-        }
-        .container {
-            max-width: 1200px;
-        }
-        .card {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-        }
-        .card-body {
-            color: white !important; /* Pastikan teks di kartu proyek putih */
-        }
-        .card-title {
-            color: white !important; /* Pastikan judul kartu putih */
-        }
-        .card-text {
-            color: white !important; /* Pastikan teks kartu putih */
-        }
+        /* Bagian CSS lain sama seperti sebelumnya */
         .add-project-card {
-            background: #2a2a3e !important; /* Warna abu-abu gelap untuk form add project */
+            background: #2a2a3e !important; /* Warna abu-abu gelap untuk form */
+        }
+        .add-project-card .form-label {
+            color: #ff00ff !important; /* Label (Project Image, Type, dll.) pink */
         }
         .add-project-card .form-control,
         .add-project-card .form-select {
-            background-color: #1e1e2f !important; /* Warna kolom input gelap */
-            color: #ff00ff !important; /* Teks kolom pink */
+            background-color: #1e1e2f !important; /* Kolom input gelap */
+            color: white !important; /* Teks dalam kolom putih */
             border: 1px solid #444 !important; /* Border kolom */
         }
         .add-project-card .form-control::placeholder,
         .add-project-card .form-select::placeholder {
-            color: #ff66ff !important; /* Warna placeholder pink terang */
+            color: #aaaaaa !important; /* Placeholder abu-abu untuk kontras */
         }
-        .btn-primary {
-            background: #ff00ff;
-            border: none;
-        }
-        .btn-primary:hover {
-            background: #e600e6;
-        }
-        .btn-danger {
-            background: #ff4444;
-        }
-        .btn-danger:hover {
-            background: #cc0000;
-        }
-        .error-message {
-            color: #ff4444;
-            font-size: 0.9rem;
-        }
-        .username-link {
-            cursor: pointer;
-            text-decoration: underline;
-            color: white;
-        }
-        .username-link:hover {
-            color: #ff00ff;
-        }
-        .message-count {
-            background: #ff00ff;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 8px;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
+        /* Bagian CSS lain (message-count, dll.) tetap sama */
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Liquidity Farm</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <span class="nav-link username-link" id="navbarUsername" style="display: none;" onclick="showUserProjects()">
-                            <span id="usernameText"></span>
-                            <span id="messageCount" class="message-count" style="display: none;">0</span>
-                        </span>
-                    </li>
-                    <li class="nav-item">
-                        <button class="btn btn-primary me-2" id="messagesButton" style="display: none;" onclick="showMessages()">Messages</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="btn btn-primary me-2" id="pendingUsersButton" style="display: none;" onclick="showPendingUsers()">Manage Users</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="btn btn-danger" id="logoutButton" style="display: none;" onclick="logout()">Logout</button>
-                    </li>
-                </ul>
-            </div>
+    <!-- Bagian lain sama seperti sebelumnya -->
+    <!-- Add Project Form -->
+    <div id="addProjectForm" class="card p-4 mb-4 add-project-card" style="display: none;">
+        <h2 class="text-center">Add Project</h2>
+        <p class="error-message" id="addProjectMessage"></p>
+        <div class="mb-3">
+            <label for="projectImage" class="form-label">Project Image</label>
+            <input type="file" class="form-control" id="projectImage" accept="image/*">
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container mt-4">
-        <!-- Login Form -->
-        <div id="loginContainer" class="card p-4 mb-4">
-            <h2 class="text-center">Login</h2>
-            <p class="error-message" id="loginMessage"></p>
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" placeholder="Enter email">
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" placeholder="Enter password">
-            </div>
-            <button class="btn btn-primary w-100" onclick="login()">Login</button>
-            <p class="text-center mt-3">
-                <a href="#" onclick="showRegisterForm()">Register</a> | 
-                <a href="#" onclick="showForgotPassword()">Forgot Password?</a>
-            </p>
+        <div class="mb-3">
+            <label for="projectName" class="form-label">Project Name</label>
+            <input type="text" class="form-control" id="projectName" placeholder="Enter project name">
         </div>
-
-        <!-- Register Form -->
-        <div id="registerContainer" class="card p-4 mb-4" style="display: none;">
-            <h2 class="text-center">Register</h2>
-            <p class="error-message" id="registerMessage"></p>
-            <div class="mb-3">
-                <label for="registerUsername" class="form-label">Username</label>
-                <input type="text" class="form-control" id="registerUsername" placeholder="Enter username">
-            </div>
-            <div class="mb-3">
-                <label for="registerEmail" class="form-label">Email</label>
-                <input type="email" class="form-control" id="registerEmail" placeholder="Enter email">
-            </div>
-            <div class="mb-3">
-                <label for="registerPassword" class="form-label">Password</label>
-                <input type="password" class="form-control" id="registerPassword" placeholder="Enter password">
-            </div>
-            <button class="btn btn-primary w-100" onclick="register()">Register</button>
-            <p class="text-center mt-3">
-                <a href="#" onclick="showLogin()">Back to Login</a>
-            </p>
-        </div>
-
-        <!-- Reset Password Form -->
-        <div id="resetPasswordContainer" class="card p-4 mb-4" style="display: none;">
-            <h2 class="text-center">Reset Password</h2>
-            <p class="error-message" id="resetMessage"></p>
-            <div class="mb-3">
-                <label for="resetEmail" class="form-label">Email</label>
-                <input type="email" class="form-control" id="resetEmail" placeholder="Enter email">
-            </div>
-            <button class="btn btn-primary w-100" onclick="resetPassword()">Reset Password</button>
-            <p class="text-center mt-3">
-                <a href="#" onclick="showLogin()">Back to Login</a>
-            </p>
-        </div>
-
-        <!-- Actions (Admin/User) -->
-        <div id="actionsContainer" class="mb-4" style="display: none;">
-            <button class="btn btn-primary me-2" onclick="showAddProjectForm()">Add Project</button>
-            <button class="btn btn-primary me-2" onclick="showProjects()">View Projects</button>
-            <button class="btn btn-primary me-2" onclick="showUserProjects()">My Projects</button>
-        </div>
-
-        <!-- Add Project Form -->
-        <div id="addProjectForm" class="card p-4 mb-4 add-project-card" style="display: none;">
-            <h2 class="text-center">Add Project</h2>
-            <p class="error-message" id="addProjectMessage"></p>
-            <div class="mb-3">
-                <label for="projectImage" class="form-label">Project Image</label>
-                <input type="file" class="form-control" id="projectImage" accept="image/*">
-            </div>
-            <div class="mb-3">
-                <label for="projectName" class="form-label">Project Name</label>
-                <input type="text" class="form-control" id="projectName">
-            </div>
-            <div class="mb-3">
-                <label for="projectType" class="form-label">Type</label>
-                <select class="form-select" id="projectType">
-                    <option value="Testnet">Testnet</option>
-                    <option value="Retro">Retro</option>
-                    <option value="Garapan">Garapan</option>
-                    <option value="Tools">Tools</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="projectLink" class="form-label">Project Link</label>
-                <input type="url" class="form-control" id="projectLink">
-            </div>
-            <div class="mb-3">
-                <label for="projectDescription" class="form-label">Description</label>
-                <textarea class="form-control" id="projectDescription" rows="4"></textarea>
-            </div>
-            <div class="mb-3">
-                <label for="startDate" class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="startDate">
-            </div>
-            <div class="mb-3">
-                <label for="endDate" class="form-label">End Date</label>
-                <input type="date" class="form-control" id="endDate">
-            </div>
-            <button class="btn btn-primary w-100" onclick="addProject()">Add Project</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showProjects()">Cancel</button>
-        </div>
-
-        <!-- Edit Project Form -->
-        <div id="editProjectForm" class="card p-4 mb-4" style="display: none;">
-            <h2 class="text-center">Edit Project</h2>
-            <p class="error-message" id="editProjectMessage"></p>
-            <div class="mb-3">
-                <label for="editProjectName" class="form-label">Project Name</label>
-                <input type="text" class="form-control" id="editProjectName">
-            </div>
-            <div class="mb-3">
-                <label for="editProjectType" class="form-label">Type</label>
-                <select class="form-select" id="editProjectType">
-                    <option value="Testnet">Testnet</option>
-                    <option value="Retro">Retro</option>
-                    <option value="Garapan">Garapan</option>
-                    <option value="Tools">Tools</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="editProjectLink" class="form-label">Project Link</label>
-                <input type="url" class="form-control" id="editProjectLink">
-            </div>
-            <div class="mb-3">
-                <label for="editProjectDescription" class="form-label">Description</label>
-                <textarea class="form-control" id="editProjectDescription" rows="4"></textarea>
-            </div>
-            <div class="mb-3">
-                <label for="editStartDate" class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="editStartDate">
-            </div>
-            <div class="mb-3">
-                <label for="editEndDate" class="form-label">End Date</label>
-                <input type="date" class="form-control" id="editEndDate">
-            </div>
-            <div class="mb-3">
-                <label for="editProjectStatus" class="form-label">Status</label>
-                <select class="form-select" id="editProjectStatus">
-                    <option value="Berjalan">Berjalan</option>
-                    <option value="Selesai">Selesai</option>
-                    <option value="Dihentikan">Dihentikan</option>
-                </select>
-            </div>
-            <button class="btn btn-primary w-100" onclick="updateProject()">Update Project</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showProjects()">Cancel</button>
-        </div>
-
-        <!-- Tutorial -->
-        <div id="tutorialContainer" class="card p-4 mb-4" style="display: none;">
-            <h2 id="tutorialProjectName"></h2>
-            <p><a id="tutorialProjectLink" href="#" target="_blank"></a></p>
-            <p id="tutorialDescription"></p>
-            <button class="btn btn-secondary w-100" onclick="showProjects()">Back</button>
-        </div>
-
-        <!-- Public Projects -->
-        <div id="publicContainer">
-            <h2>Public Projects</h2>
-            <div class="row" id="publicProjectsList"></div>
-        </div>
-
-        <!-- Filter Projects -->
-        <div id="typeFilterContainer" class="mb-4" style="display: none;">
-            <select class="form-select" onchange="filterProjectsByType(this.value)">
-                <option value="">All Types</option>
+        <div class="mb-3">
+            <label for="projectType" class="form-label">Type</label>
+            <select class="form-select" id="projectType">
                 <option value="Testnet">Testnet</option>
                 <option value="Retro">Retro</option>
                 <option value="Garapan">Garapan</option>
-                <option value="Tools">Tools</option>
+                <!-- Opsi Tools akan ditambahkan secara dinamis via JS -->
             </select>
         </div>
-
-        <!-- Projects -->
-        <div id="projectsContainer" class="row" style="display: none;"></div>
-
-        <!-- User Projects -->
-        <div id="userProjectsContainer" class="card p-4 mb-4" style="display: none;">
-            <h2>My Projects</h2>
-            <div class="row" id="userProjectsList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+        <div class="mb-3">
+            <label for="projectLink" class="form-label">Project Link</label>
+            <input type="url" class="form-control" id="projectLink" placeholder="Enter project URL">
         </div>
-
-        <!-- Pending Users (Admin) -->
-        <div id="pendingUsersContainer" class="card p-4 mb-4" style="display: none;">
-            <h2>Manage Users</h2>
-            <p class="error-message" id="manageUsersMessage"></p>
-            <h3>New Registrations</h3>
-            <div id="pendingUsersList"></div>
-            <h3>Approved Users</h3>
-            <div id="approvedUsersList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+        <div class="mb-3">
+            <label for="projectDescription" class="form-label">Description</label>
+            <textarea class="form-control" id="projectDescription" rows="4" placeholder="Enter description"></textarea>
         </div>
-
-        <!-- Messaging Form -->
-        <div id="messageContainer" class="card p-4 mb-4" style="display: none;">
-            <h2 class="text-center">Send Message to Admin</h2>
-            <p class="error-message" id="messageError"></p>
-            <div class="mb-3">
-                <label for="messageContent" class="form-label">Message</label>
-                <textarea class="form-control" id="messageContent" rows="4" placeholder="Enter your message"></textarea>
-            </div>
-            <button class="btn btn-primary w-100" onclick="sendMessage()">Send</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="closeMessageForm()">Cancel</button>
+        <div class="mb-3">
+            <label for="startDate" class="form-label">Start Date</label>
+            <input type="date" class="form-control" id="startDate">
         </div>
-
-        <!-- View Messages -->
-        <div id="messagesContainer" class="card p-4 mb-4" style="display: none;">
-            <h2 class="text-center">Messages</h2>
-            <div id="messagesList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+        <div class="mb-3">
+            <label for="endDate" class="form-label">End Date</label>
+            <input type="date" class="form-control" id="endDate">
         </div>
+        <button class="btn btn-primary w-100" onclick="addProject()">Add Project</button>
+        <button class="btn btn-secondary w-100 mt-2" onclick="showProjects()">Cancel</button>
     </div>
-
-    <!-- Firebase CDN -->
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- App JS -->
-    <script src="/app.js"></script>
+    <!-- Bagian lain sama seperti sebelumnya -->
 </body>
 </html>
