@@ -3,13 +3,13 @@ window.ethereum = null;
 
 // Firebase Config (GANTI DENGAN CONFIG DARI FIREBASE CONSOLE)
 const firebaseConfig = {
-    apiKey: "AIzaSyCTYu51tAUlNS_11gcIA6yzNS1ziUzmglU",
-    authDomain: "lfarm-e11ad.firebaseapp.com",
-    projectId: "lfarm-e11ad",
-    storageBucket: "lfarm-e11ad.firebasestorage.app",
-    messagingSenderId: "240256024936",
-    appId: "1:240256024936:web:b50a13187c05102c0e56dd",
-    measurementId: "G-SYCJT5KJW9"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
 };
 
 // Inisialisasi Firebase
@@ -154,6 +154,8 @@ window.register = async function register() {
         const registerMessage = document.getElementById('registerMessage');
         registerMessage.textContent = '';
 
+        console.log('Register attempt:', { username, email });
+
         if (!username || !email || !password) {
             registerMessage.textContent = 'Please fill all fields';
             return;
@@ -174,7 +176,20 @@ window.register = async function register() {
             return;
         }
 
-        console.log('Register attempt:', { username, email });
+        // Cek apakah email sudah ada di pendingUsers
+        const pendingSnapshot = await db.collection('pendingUsers').where('email', '==', email).get();
+        if (!pendingSnapshot.empty) {
+            registerMessage.textContent = 'Email is already pending approval';
+            return;
+        }
+
+        // Cek apakah email sudah ada di users
+        const userSnapshot = await db.collection('users').where('email', '==', email).get();
+        if (!userSnapshot.empty) {
+            registerMessage.textContent = 'Email is already registered';
+            return;
+        }
+
         await db.collection('pendingUsers').add({
             username,
             email,
@@ -183,6 +198,7 @@ window.register = async function register() {
             allowedTools: false,
             createdAt: { timestamp: new Date().toISOString() }
         });
+        console.log('Registration submitted for:', email);
         alert('Registration submitted, awaiting admin approval');
         showLogin();
     } catch (error) {
@@ -268,6 +284,8 @@ window.addProject = async function addProject() {
         const addProjectMessage = document.getElementById('addProjectMessage');
         addProjectMessage.textContent = '';
 
+        console.log('Add project attempt:', { projectName, projectType, projectLink, startDate, endDate, image: !!projectImage });
+
         const user = auth.currentUser;
         if (!user) {
             addProjectMessage.textContent = 'Please login first';
@@ -283,6 +301,8 @@ window.addProject = async function addProject() {
         }
 
         const userData = userDoc.data();
+        console.log('User data:', userData);
+
         if (!userData.allowedTools && projectType === 'Tools') {
             alert('You do not have permission to add Tools projects. Please request access from admin.');
             showMessageForm();
@@ -301,6 +321,7 @@ window.addProject = async function addProject() {
 
         let imageUrl = '';
         if (projectImage) {
+            console.log('Uploading image:', projectImage.name, projectImage.size);
             if (projectImage.size > 5 * 1024 * 1024) {
                 addProjectMessage.textContent = 'Image size must be less than 5MB';
                 return;
@@ -308,6 +329,7 @@ window.addProject = async function addProject() {
             const storageRef = storage.ref(`project_images/${user.uid}/${Date.now()}_${projectImage.name}`);
             const snapshot = await storageRef.put(projectImage);
             imageUrl = await snapshot.ref.getDownloadURL();
+            console.log('Image uploaded:', imageUrl);
         }
 
         const projectData = {
@@ -323,6 +345,7 @@ window.addProject = async function addProject() {
             createdAt: { timestamp: new Date().toISOString() }
         };
 
+        console.log('Saving project:', projectData);
         await db.collection('projects').add(projectData);
         alert('Project added successfully');
         showProjects();
