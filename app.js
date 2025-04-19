@@ -3,14 +3,14 @@ window.ethereum = null;
 
 // Firebase Config (GANTI DENGAN CONFIG DARI FIREBASE CONSOLE)
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID",
-    measurementId: "YOUR_MEASUREMENT_ID"
-};
+    apiKey: "AIzaSyCTYu51tAUlNS_11gcIA6yzNS1ziUzmglU",
+    authDomain: "lfarm-e11ad.firebaseapp.com",
+    projectId: "lfarm-e11ad",
+    storageBucket: "lfarm-e11ad.firebasestorage.app",
+    messagingSenderId: "240256024936",
+    appId: "1:240256024936:web:b50a13187c05102c0e56dd",
+    measurementId: "G-SYCJT5KJW9"
+  };
 
 // Inisialisasi Firebase
 try {
