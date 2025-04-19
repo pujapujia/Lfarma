@@ -126,6 +126,7 @@
             <button class="btn btn-primary me-2" onclick="showAddProjectForm()">Add Project</button>
             <button class="btn btn-primary me-2" onclick="showProjects()">View Projects</button>
             <button class="btn btn-primary me-2" onclick="showUserProjects()">My Projects</button>
+            <button class="btn btn-primary me-2" onclick="showMessages()">Messages</button>
             <button class="btn btn-primary" id="pendingUsersButton" style="display: none;" onclick="showPendingUsers()">Manage Users</button>
         </div>
 
@@ -140,10 +141,10 @@
             <div class="mb-3">
                 <label for="projectType" class="form-label">Type</label>
                 <select class="form-select" id="projectType">
-                    <option value="Web">Web</option>
-                    <option value="Mobile">Mobile</option>
-                    <option value="AI">AI</option>
-                    <option value="Blockchain">Blockchain</option>
+                    <option value="Testnet">Testnet</option>
+                    <option value="Retro">Retro</option>
+                    <option value="Garapan">Garapan</option>
+                    <option value="Tools">Tools</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -177,10 +178,10 @@
             <div class="mb-3">
                 <label for="editProjectType" class="form-label">Type</label>
                 <select class="form-select" id="editProjectType">
-                    <option value="Web">Web</option>
-                    <option value="Mobile">Mobile</option>
-                    <option value="AI">AI</option>
-                    <option value="Blockchain">Blockchain</option>
+                    <option value="Testnet">Testnet</option>
+                    <option value="Retro">Retro</option>
+                    <option value="Garapan">Garapan</option>
+                    <option value="Tools">Tools</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -229,10 +230,10 @@
         <div id="typeFilterContainer" class="mb-4" style="display: none;">
             <select class="form-select" onchange="filterProjectsByType(this.value)">
                 <option value="">All Types</option>
-                <option value="Web">Web</option>
-                <option value="Mobile">Mobile</option>
-                <option value="AI">AI</option>
-                <option value="Blockchain">Blockchain</option>
+                <option value="Testnet">Testnet</option>
+                <option value="Retro">Retro</option>
+                <option value="Garapan">Garapan</option>
+                <option value="Tools">Tools</option>
             </select>
         </div>
 
@@ -254,6 +255,25 @@
             <div id="pendingUsersList"></div>
             <h3>Approved Users</h3>
             <div id="approvedUsersList"></div>
+            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+        </div>
+
+        <!-- Messaging Form -->
+        <div id="messageContainer" class="card p-4 mb-4" style="display: none;">
+            <h2 class="text-center">Send Message to Admin</h2>
+            <p class="error-message" id="messageError"></p>
+            <div class="mb-3">
+                <label for="messageContent" class="form-label">Message</label>
+                <textarea class="form-control" id="messageContent" rows="4" placeholder="Enter your message"></textarea>
+            </div>
+            <button class="btn btn-primary w-100" onclick="sendMessage()">Send</button>
+            <button class="btn btn-secondary w-100 mt-2" onclick="closeMessageForm()">Cancel</button>
+        </div>
+
+        <!-- View Messages -->
+        <div id="messagesContainer" class="card p-4 mb-4" style="display: none;">
+            <h2 class="text-center">Messages</h2>
+            <div id="messagesList"></div>
             <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
         </div>
     </div>
