@@ -22,6 +22,15 @@
             background: rgba(255, 255, 255, 0.1);
             border: none;
         }
+        .card-body {
+            color: white !important; /* Pastikan teks di kartu proyek putih */
+        }
+        .card-title {
+            color: white !important; /* Pastikan judul kartu putih */
+        }
+        .card-text {
+            color: white !important; /* Pastikan teks kartu putih */
+        }
         .add-project-card {
             background: #2a2a3e !important; /* Warna abu-abu gelap untuk form add project */
         }
@@ -42,11 +51,12 @@
             color: #ff4444;
             font-size: 0.9rem;
         }
-        .profile-link {
+        .username-link {
             cursor: pointer;
             text-decoration: underline;
+            color: white;
         }
-        .profile-link:hover {
+        .username-link:hover {
             color: #ff00ff;
         }
     </style>
@@ -62,7 +72,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <span class="nav-link" id="navbarUsername" style="display: none;"></span>
+                        <span class="nav-link username-link" id="navbarUsername" style="display: none;" onclick="showUserProjects()"></span>
                     </li>
                     <li class="nav-item">
                         <button class="btn btn-primary me-2" id="messagesButton" style="display: none;" onclick="showMessages()">Messages</button>
@@ -80,11 +90,6 @@
 
     <!-- Main Content -->
     <div class="container mt-4">
-        <!-- Profile -->
-        <div id="profile" style="display: none;" class="mb-4">
-            <h3>Welcome, <span id="profileUsername" class="profile-link" onclick="showUserProjects()"></span></h3>
-        </div>
-
         <!-- Login Form -->
         <div id="loginContainer" class="card p-4 mb-4">
             <h2 class="text-center">Login</h2>

@@ -83,10 +83,8 @@ window.login = async function login() {
 
         const userData = JSON.parse(localStorage.getItem('user'));
         console.log('User data loaded:', userData);
-        document.getElementById('profileUsername').textContent = userData.username;
         document.getElementById('navbarUsername').textContent = userData.username;
         document.getElementById('loginContainer').style.display = 'none';
-        document.getElementById('profile').style.display = 'block';
         document.getElementById('logoutButton').style.display = 'block';
         document.getElementById('navbarUsername').style.display = 'inline-block';
         document.getElementById('messagesButton').style.display = 'inline-block';
@@ -134,7 +132,6 @@ window.logout = async function logout() {
     try {
         await auth.signOut();
         localStorage.removeItem('user');
-        document.getElementById('profile').style.display = 'none';
         document.getElementById('logoutButton').style.display = 'none';
         document.getElementById('navbarUsername').style.display = 'none';
         document.getElementById('messagesButton').style.display = 'none';
@@ -1120,10 +1117,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const userData = JSON.parse(localStorage.getItem('user'));
                 console.log('User loaded:', userData);
-                document.getElementById('profileUsername').textContent = userData.username;
                 document.getElementById('navbarUsername').textContent = userData.username;
                 document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('profile').style.display = 'block';
                 document.getElementById('logoutButton').style.display = 'block';
                 document.getElementById('navbarUsername').style.display = 'inline-block';
                 document.getElementById('messagesButton').style.display = 'inline-block';
