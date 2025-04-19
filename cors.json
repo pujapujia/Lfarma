@@ -1,0 +1,8 @@
+[
+    {
+        "origin": ["https://lfarma.vercel.app", "http://localhost:3000"],
+        "responseHeader": ["Content-Type", "Authorization"],
+        "method": ["GET", "POST", "PUT", "DELETE"],
+        "maxAgeSeconds": 3600
+    }
+]
