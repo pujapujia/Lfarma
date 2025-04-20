@@ -27,6 +27,9 @@
                         </button>
                     </li>
                     <li class="nav-item">
+                        <button class="btn btn-primary" id="pendingUsersButton" style="display: none;">Pending Users</button>
+                    </li>
+                    <li class="nav-item">
                         <button class="btn btn-danger" id="logoutButton" style="display: none;">Logout</button>
                     </li>
                 </ul>
@@ -35,75 +38,52 @@
     </nav>
 
     <div class="container mt-4" id="actionsContainer">
-        <div class="card p-4 mb-4">
-            <h2>Actions</h2>
+        <div class="card p-4">
+            <h2 class="text-center">User Actions</h2>
             <button class="btn btn-primary w-100 mb-2" id="addProjectButton">Add Project</button>
             <button class="btn btn-primary w-100 mb-2" id="myProjectsButton">My Projects</button>
             <button class="btn btn-primary w-100 mb-2" id="messageFormButton">Send Message to Admin</button>
         </div>
     </div>
 
-    <div id="addProjectForm" class="card p-4 mb-4 add-project-card" style="display: none;">
-        <h2 class="text-center">Add Project</h2>
-        <p class="error-message" id="addProjectMessage"></p>
-        <div class="mb-3">
-            <label for="projectImage" class="form-label">Project Image</label>
-            <input type="file" class="form-control" id="projectImage" accept="image/*">
-        </div>
-        <div class="mb-3">
-            <label for="projectName" class="form-label">Project Name</label>
-            <input type="text" class="form-control" id="projectName" placeholder="Enter project name">
-        </div>
-        <div class="mb-3">
-            <label for="projectType" class="form-label">Type</label>
-            <select class="form-select" id="projectType">
-                <option value="Testnet">Testnet</option>
-                <option value="Retro">Retro</option>
-                <option value="Garapan">Garapan</option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label for="projectLink" class="form-label">Project Link</label>
-            <input type="url" class="form-control" id="projectLink" placeholder="Enter project URL">
-        </div>
-        <div class="mb-3">
-            <label for="projectDescription" class="form-label">Description</label>
-            <textarea class="form-control" id="projectDescription" rows="4" placeholder="Enter description"></textarea>
-        </div>
-        <div class="mb-3">
-            <label for="startDate" class="form-label">Start Date</label>
-            <input type="date" class="form-control" id="startDate">
-        </div>
-        <div class="mb-3">
-            <label for="endDate" class="form-label">End Date</label>
-            <input type="date" class="form-control" id="endDate">
-        </div>
-        <button class="btn btn-primary w-100" id="submitProjectButton">Add Project</button>
-        <button class="btn btn-secondary w-100 mt-2" id="cancelProjectButton">Cancel</button>
-    </div>
-
-    <div class="container mt-4" id="projectsContainer">
-        <div class="row"></div>
-    </div>
-
-    <div class="container mt-4" id="messageContainer" style="display: none;">
-        <div class="card p-4">
-            <h2>Send Message to Admin</h2>
-            <p class="error-message" id="messageError"></p>
+    <div class="container mt-4" id="addProjectForm" style="display: none;">
+        <div class="card p-4 add-project-card">
+            <h2 class="text-center">Add Project</h2>
+            <p class="error-message" id="addProjectMessage"></p>
             <div class="mb-3">
-                <label for="messageContent" class="form-label">Message</label>
-                <textarea class="form-control" id="messageContent" rows="4" placeholder="Enter your message"></textarea>
+                <label for="projectName" class="form-label">Project Name</label>
+                <input type="text" class="form-control" id="projectName" placeholder="Enter project name">
             </div>
-            <button class="btn btn-primary w-100" id="sendMessageButton">Send</button>
-            <button class="btn btn-secondary w-100 mt-2" id="closeMessageButton">Cancel</button>
-        </div>
-    </div>
-
-    <div class="container mt-4" id="messagesContainer" style="display: none;">
-        <div class="card p-4">
-            <h2>Messages</h2>
-            <div id="messagesList"></div>
-            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
+            <div class="mb-3">
+                <label for="projectType" class="form-label">Type</label>
+                <select class="form-select" id="projectType">
+                    <option value="Testnet">Testnet</option>
+                    <option value="Retro">Retro</option>
+                    <option value="Garapan">Garapan</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="projectLink" class="form-label">Project Link</label>
+                <input type="url" class="form-control" id="projectLink" placeholder="Enter project URL">
+            </div>
+            <div class="mb-3">
+                <label for="projectDescription" class="form-label">Description</label>
+                <textarea class="form-control" id="projectDescription" rows="4" placeholder="Enter description"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="startDate" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="startDate">
+            </div>
+            <div class="mb-3">
+                <label for="endDate" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="endDate">
+            </div>
+            <div class="mb-3">
+                <label for="projectImage" class="form-label">Project Image</label>
+                <input type="file" class="form-control" id="projectImage" accept="image/jpeg,image/png,image/gif">
+            </div>
+            <button class="btn btn-primary w-100" id="submitProjectButton">Add Project</button>
+            <button class="btn btn-secondary w-100 mt-2" id="cancelProjectButton">Cancel</button>
         </div>
     </div>
 
@@ -111,6 +91,27 @@
         <div class="card p-4">
             <h2>My Projects</h2>
             <div class="row" id="userProjectsList"></div>
+            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
+        </div>
+    </div>
+
+    <div class="container mt-4" id="messageContainer" style="display: none;">
+        <div class="card p-4">
+            <h2 class="text-center">Send Message to Admin</h2>
+            <p class="error-message" id="messageError"></p>
+            <div class="mb-3">
+                <label for="messageContent" class="form-label">Message</label>
+                <textarea class="form-control" id="messageContent" rows="4" placeholder="Enter your message"></textarea>
+            </div>
+            <button class="btn btn-primary w-100" id="sendMessageButton">Send</button>
+            <button class="btn btn-secondary w-100 mt-2" id="closeMessageButton">Close</button>
+        </div>
+    </div>
+
+    <div class="container mt-4" id="messagesContainer" style="display: none;">
+        <div class="card p-4">
+            <h2>Messages</h2>
+            <div id="messagesList"></div>
             <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
         </div>
     </div>

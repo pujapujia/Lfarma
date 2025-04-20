@@ -14,12 +14,12 @@ body {
     background: rgba(255, 255, 255, 0.1);
     border: none;
     border-radius: 10px;
-    color: white; /* Pastikan teks di card tetap putih */
+    color: white;
 }
 
 .card-title,
 .card-text {
-    color: white !important; /* Teks di card (nama proyek, dll.) tetap putih */
+    color: white !important;
 }
 
 .btn-primary {

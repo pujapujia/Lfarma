@@ -1,3 +1,4 @@
+// config.js
 const config = {
     firebase: {
         apiKey: "AIzaSyCTYu51tAUlNS_11gcIA6yzNS1ziUzmglU",
@@ -8,7 +9,7 @@ const config = {
         measurementId: "G-SYCJT5KJW9"
     },
     cloudinary: {
-        cloudName: "dsk28f7m2", // Ganti dengan cloud name Cloudinary kamu
+        cloudName: "dsk28f7m2", // Ganti dengan cloud name kamu
         uploadPreset: "lfarm_unsigned" // Ganti dengan upload preset kamu
     }
 };

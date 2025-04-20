@@ -165,33 +165,39 @@ async function register() {
 
         if (!username || !email || !password) {
             registerMessage.textContent = 'Please fill all fields';
+            console.log('Missing fields:', { username, email, password });
             return;
         }
 
         if (username.length < 3) {
             registerMessage.textContent = 'Username must be at least 3 characters';
+            console.log('Invalid username length:', username);
             return;
         }
 
         if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
             registerMessage.textContent = 'Please enter a valid email';
+            console.log('Invalid email format:', email);
             return;
         }
 
         if (password.length < 6) {
             registerMessage.textContent = 'Password must be at least 6 characters';
+            console.log('Invalid password length:', password);
             return;
         }
 
         const pendingSnapshot = await db.collection('pendingUsers').where('email', '==', email).get();
         if (!pendingSnapshot.empty) {
             registerMessage.textContent = 'Email is already pending approval';
+            console.log('Email already pending:', email);
             return;
         }
 
         const userSnapshot = await db.collection('users').where('email', '==', email).get();
         if (!userSnapshot.empty) {
             registerMessage.textContent = 'Email is already registered';
+            console.log('Email already registered:', email);
             return;
         }
 
@@ -1032,11 +1038,19 @@ async function showPendingUsers() {
                 div.innerHTML = `
                     <span>${userData.username} (${userData.email})</span>
                     <div>
-                        <button class="btn btn-success me-2" onclick="approveUser('${doc.id}')">Approve</button>
-                        <button class="btn btn-danger" onclick="rejectUser('${doc.id}')">Reject</button>
+                        <button class="btn btn-success me-2 approve-btn" data-id="${doc.id}">Approve</button>
+                        <button class="btn btn-danger reject-btn" data-id="${doc.id}">Reject</button>
                     </div>
                 `;
                 pendingUsersList.appendChild(div);
+            });
+
+            // Tambahkan event listener untuk tombol Approve dan Reject
+            document.querySelectorAll('.approve-btn').forEach(button => {
+                button.addEventListener('click', () => approveUser(button.dataset.id));
+            });
+            document.querySelectorAll('.reject-btn').forEach(button => {
+                button.addEventListener('click', () => rejectUser(button.dataset.id));
             });
         }
 
@@ -1053,13 +1067,21 @@ async function showPendingUsers() {
                 div.innerHTML = `
                     <span>${userData.username} (${userData.email})</span>
                     <div>
-                        <button class="btn btn-primary me-2" onclick="toggleToolsAccess('${doc.id}', ${!userData.allowedTools})">
+                        <button class="btn btn-primary me-2 tools-btn" data-id="${doc.id}" data-allowed="${userData.allowedTools}">
                             ${userData.allowedTools ? 'Disable Tools' : 'Enable Tools'}
                         </button>
-                        <button class="btn btn-danger" onclick="removeUser('${doc.id}', '${userData.username}')">Remove</button>
+                        <button class="btn btn-danger remove-btn" data-id="${doc.id}" data-username="${userData.username}">Remove</button>
                     </div>
                 `;
                 approvedUsersList.appendChild(div);
+            });
+
+            // Tambahkan event listener untuk tombol Tools dan Remove
+            document.querySelectorAll('.tools-btn').forEach(button => {
+                button.addEventListener('click', () => toggleToolsAccess(button.dataset.id, button.dataset.allowed === 'false'));
+            });
+            document.querySelectorAll('.remove-btn').forEach(button => {
+                button.addEventListener('click', () => removeUser(button.dataset.id, button.dataset.username));
             });
         }
     } catch (error) {
