@@ -1,35 +1,33 @@
+// app.js
+import config from './config.js';
+
+// Nonaktifkan Metamask untuk mencegah error
 window.ethereum = null;
 
-const firebaseConfig = {
-    apiKey: "AIzaSyCTYu51tAUlNS_11gcIA6yzNS1ziUzmglU",
-    authDomain: "lfarm-e11ad.firebaseapp.com",
-    projectId: "lfarm-e11ad",
-    storageBucket: "lfarm-e11ad.firebasestorage.app",
-    messagingSenderId: "240256024936",
-    appId: "1:240256024936:web:b50a13187c05102c0e56dd",
-    measurementId: "G-SYCJT5KJW9"
-  };
-
+// Inisialisasi Firebase
 try {
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(config.firebase);
     console.log('Firebase initialized successfully');
 } catch (error) {
     console.error('Error initializing Firebase:', error);
-    alert('Failed to initialize Firebase. Please check API Key and try again.');
+    alert('Failed to initialize Firebase. Please check configuration and try again.');
 }
+
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET;
+// Pastikan Firestore terkoneksi
+db.collection('users')
+    .get()
+    .then(snapshot => {
+        console.log('Firestore connected, collections size:', snapshot.size);
+    })
+    .catch(error => {
+        console.error('Firestore connection error:', error);
+        alert('Failed to connect to Firestore: ' + error.message);
+    });
 
-db.collection('users').get().then(snapshot => {
-    console.log('Firestore connected, collections size:', snapshot.size);
-}).catch(error => {
-    console.error('Firestore connection error:', error);
-    alert('Failed to connect to Firestore: ' + error.message);
-});
-
+// Fungsi untuk memeriksa keberadaan halaman
 async function checkPageExists(url) {
     try {
         console.log('Checking page existence:', url);
@@ -42,16 +40,18 @@ async function checkPageExists(url) {
     }
 }
 
+// Fungsi untuk memperbarui jumlah pesan belum dibaca
 async function updateMessageCount() {
     try {
         const user = auth.currentUser;
         if (!user) return;
 
-        const snapshot = await db.collection('messages')
+        const snapshot = await db
+            .collection('messages')
             .where('receiverId', '==', user.uid)
             .where('read', '==', false)
             .get();
-        
+
         const count = snapshot.size;
         const messageCountElement = document.getElementById('messageCount');
         if (count > 0) {
@@ -66,7 +66,8 @@ async function updateMessageCount() {
     }
 }
 
-window.login = async function login() {
+// Fungsi Login
+async function login() {
     try {
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value.trim();
@@ -142,9 +143,10 @@ window.login = async function login() {
         }
         document.getElementById('loginMessage').textContent = message;
     }
-};
+}
 
-window.logout = async function logout() {
+// Fungsi Logout
+async function logout() {
     try {
         await auth.signOut();
         localStorage.removeItem('user');
@@ -159,9 +161,10 @@ window.logout = async function logout() {
         console.error('Error logging out:', error);
         alert('Error logging out: ' + error.message);
     }
-};
+}
 
-window.register = async function register() {
+// Fungsi Register
+async function register() {
     try {
         const username = document.getElementById('registerUsername').value.trim();
         const email = document.getElementById('registerEmail').value.trim();
@@ -220,9 +223,10 @@ window.register = async function register() {
         console.error('Error registering:', error);
         document.getElementById('registerMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.resetPassword = async function resetPassword() {
+// Fungsi Reset Password
+async function resetPassword() {
     try {
         const email = document.getElementById('resetEmail').value.trim();
         const resetMessage = document.getElementById('resetMessage');
@@ -257,31 +261,35 @@ window.resetPassword = async function resetPassword() {
         }
         document.getElementById('resetMessage').textContent = message;
     }
-};
+}
 
-window.showRegisterForm = function showRegisterForm() {
+// Fungsi untuk menampilkan form register
+function showRegisterForm() {
     document.getElementById('loginContainer').style.display = 'none';
     document.getElementById('registerContainer').style.display = 'block';
     document.getElementById('resetPasswordContainer').style.display = 'none';
     document.getElementById('loginMessage').textContent = '';
-};
+}
 
-window.showForgotPassword = function showForgotPassword() {
+// Fungsi untuk menampilkan form lupa password
+function showForgotPassword() {
     document.getElementById('loginContainer').style.display = 'none';
     document.getElementById('registerContainer').style.display = 'none';
     document.getElementById('resetPasswordContainer').style.display = 'block';
     document.getElementById('loginMessage').textContent = '';
-};
+}
 
-window.showLogin = function showLogin() {
+// Fungsi untuk kembali ke login
+function showLogin() {
     document.getElementById('loginContainer').style.display = 'block';
     document.getElementById('registerContainer').style.display = 'none';
     document.getElementById('resetPasswordContainer').style.display = 'none';
     document.getElementById('registerMessage').textContent = '';
     document.getElementById('resetMessage').textContent = '';
-};
+}
 
-window.showAddProjectForm = async function showAddProjectForm() {
+// Fungsi untuk menampilkan form tambah proyek
+async function showAddProjectForm() {
     try {
         const user = auth.currentUser;
         const projectTypeSelect = document.getElementById('projectType');
@@ -328,9 +336,10 @@ window.showAddProjectForm = async function showAddProjectForm() {
         console.error('Error showing add project form:', error);
         document.getElementById('addProjectMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.addProject = async function addProject() {
+// Fungsi untuk menambah proyek dengan Cloudinary
+async function addProject() {
     try {
         const projectName = document.getElementById('projectName').value.trim();
         const projectType = document.getElementById('projectType').value;
@@ -415,11 +424,11 @@ window.addProject = async function addProject() {
 
             const formData = new FormData();
             formData.append('file', projectImage);
-            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-            formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+            formData.append('upload_preset', config.cloudinary.uploadPreset);
+            formData.append('cloud_name', config.cloudinary.cloudName);
 
             try {
-                const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                const response = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudinary.cloudName}/image/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -467,9 +476,10 @@ window.addProject = async function addProject() {
         }
         addProjectMessage.textContent = message;
     }
-};
+}
 
-window.showProjects = function showProjects() {
+// Fungsi untuk menampilkan proyek
+function showProjects() {
     document.getElementById('actionsContainer').style.display = 'block';
     document.getElementById('addProjectForm').style.display = 'none';
     document.getElementById('messageContainer').style.display = 'none';
@@ -478,18 +488,15 @@ window.showProjects = function showProjects() {
     document.getElementById('pendingUsersContainer').style.display = 'none';
     document.getElementById('tutorialContainer').style.display = 'none';
     document.getElementById('projectsContainer').style.display = 'flex';
-    loadProjects();
-};
+    loadPublicProjects();
+}
 
-async function loadProjects(type = '') {
+// Fungsi untuk memuat proyek publik
+async function loadPublicProjects() {
     try {
-        const projectsContainer = document.getElementById('projectsContainer');
+        const projectsContainer = document.getElementById('projectsContainer').querySelector('.row');
         projectsContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        let q = db.collection('projects');
-        if (type) {
-            q = q.where('type', '==', type);
-        }
-        const snapshot = await q.get();
+        const snapshot = await db.collection('projects').get();
         projectsContainer.innerHTML = '';
         if (snapshot.empty) {
             projectsContainer.innerHTML = '<p class="text-center">No projects found</p>';
@@ -520,10 +527,6 @@ async function loadProjects(type = '') {
                         <p class="card-text"><strong>Type:</strong> ${project.type}</p>
                         <p class="card-text"><strong>Status:</strong> ${project.status}</p>
                         <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
-                        ${userData && (userData.isAdmin || project.addedBy === userData.username) ? `
-                            <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
-                            <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
-                        ` : ''}
                         <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
                     </div>
                 </div>
@@ -531,12 +534,73 @@ async function loadProjects(type = '') {
             projectsContainer.appendChild(div);
         });
     } catch (error) {
-        console.error('Error loading projects:', error);
+        console.error('Error loading public projects:', error);
         alert('Failed to load projects: ' + error.message);
     }
 }
 
-window.showEditProjectForm = async function showEditProjectForm(projectId) {
+// Fungsi untuk menampilkan proyek pengguna
+async function showUserProjects() {
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            alert('Please login first');
+            showLogin();
+            return;
+        }
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+            alert('User data not found');
+            await auth.signOut();
+            showLogin();
+            return;
+        }
+
+        const userData = userDoc.data();
+        document.getElementById('actionsContainer').style.display = 'none';
+        document.getElementById('userProjectsContainer').style.display = 'block';
+        document.getElementById('messagesContainer').style.display = 'none';
+        document.getElementById('messageContainer').style.display = 'none';
+        document.getElementById('projectsContainer').style.display = 'none';
+        document.getElementById('pendingUsersContainer').style.display = 'none';
+        document.getElementById('addProjectForm').style.display = 'none';
+        document.getElementById('tutorialContainer').style.display = 'none';
+        const userProjectsList = document.getElementById('userProjectsList');
+        userProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        const snapshot = await db.collection('projects').where('addedBy', '==', userData.username).get();
+        userProjectsList.innerHTML = '';
+        if (snapshot.empty) {
+            userProjectsList.innerHTML = '<p class="text-center">No projects found</p>';
+            return;
+        }
+        snapshot.forEach(doc => {
+            const project = doc.data();
+            const div = document.createElement('div');
+            div.className = 'col-md-4 mb-4';
+            div.innerHTML = `
+                <div class="card h-100">
+                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
+                    <div class="card-body">
+                        <h5 class="card-title">${project.name}</h5>
+                        <p class="card-text"><strong>Type:</strong> ${project.type}</p>
+                        <p class="card-text"><strong>Status:</strong> ${project.status}</p>
+                        <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
+                        <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
+                        <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
+                    </div>
+                </div>
+            `;
+            userProjectsList.appendChild(div);
+        });
+    } catch (error) {
+        console.error('Error loading user projects:', error);
+        alert('Failed to load user projects: ' + error.message);
+    }
+}
+
+// Fungsi untuk menampilkan form edit proyek
+async function showEditProjectForm(projectId) {
     try {
         const doc = await db.collection('projects').doc(projectId).get();
         if (!doc.exists) {
@@ -547,18 +611,73 @@ window.showEditProjectForm = async function showEditProjectForm(projectId) {
         const user = auth.currentUser;
         if (!user) {
             alert('Please login first');
+            showLogin();
             return;
         }
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
             alert('User data not found');
+            await auth.signOut();
+            showLogin();
             return;
         }
         const userData = userDoc.data();
-        if (!userData.allowedTools && project.type === 'Tools' && !userData.isAdmin) {
-            alert('You do not have permission to edit Tools projects. Please request access from admin.');
-            showMessageForm();
+        if (!userData.isAdmin && project.addedBy !== userData.username) {
+            alert('You do not have permission to edit this project');
             return;
+        }
+
+        // Buat form edit jika belum ada
+        let editForm = document.getElementById('editProjectForm');
+        if (!editForm) {
+            editForm = document.createElement('div');
+            editForm.id = 'editProjectForm';
+            editForm.className = 'card p-4 mb-4 add-project-card';
+            editForm.style.display = 'none';
+            editForm.innerHTML = `
+                <h2 class="text-center">Edit Project</h2>
+                <p class="error-message" id="editProjectMessage"></p>
+                <div class="mb-3">
+                    <label for="editProjectName" class="form-label">Project Name</label>
+                    <input type="text" class="form-control" id="editProjectName" placeholder="Enter project name">
+                </div>
+                <div class="mb-3">
+                    <label for="editProjectType" class="form-label">Type</label>
+                    <select class="form-select" id="editProjectType">
+                        <option value="Testnet">Testnet</option>
+                        <option value="Retro">Retro</option>
+                        <option value="Garapan">Garapan</option>
+                        ${userData.allowedTools || userData.isAdmin ? '<option value="Tools">Tools</option>' : ''}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="editProjectLink" class="form-label">Project Link</label>
+                    <input type="url" class="form-control" id="editProjectLink" placeholder="Enter project URL">
+                </div>
+                <div class="mb-3">
+                    <label for="editProjectDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="editProjectDescription" rows="4" placeholder="Enter description"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="editStartDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="editStartDate">
+                </div>
+                <div class="mb-3">
+                    <label for="editEndDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="editEndDate">
+                </div>
+                <div class="mb-3">
+                    <label for="editProjectStatus" class="form-label">Status</label>
+                    <select class="form-select" id="editProjectStatus">
+                        <option value="Berjalan">Berjalan</option>
+                        <option value="Selesai">Selesai</option>
+                        <option value="Dibatalkan">Dibatalkan</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary w-100" id="submitEditProjectButton">Update Project</button>
+                <button class="btn btn-secondary w-100 mt-2" id="cancelEditProjectButton">Cancel</button>
+            `;
+            document.body.appendChild(editForm);
         }
 
         document.getElementById('editProjectName').value = project.name;
@@ -568,19 +687,29 @@ window.showEditProjectForm = async function showEditProjectForm(projectId) {
         document.getElementById('editStartDate').value = project.startDate;
         document.getElementById('editEndDate').value = project.endDate;
         document.getElementById('editProjectStatus').value = project.status;
-        document.getElementById('editProjectForm').dataset.projectId = projectId;
+        editForm.dataset.projectId = projectId;
         document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('editProjectForm').style.display = 'block';
+        document.getElementById('userProjectsContainer').style.display = 'none';
+        editForm.style.display = 'block';
         document.getElementById('editProjectMessage').textContent = '';
+
+        // Tambahkan event listener untuk tombol edit
+        document.getElementById('submitEditProjectButton').onclick = updateProject;
+        document.getElementById('cancelEditProjectButton').onclick = () => {
+            editForm.style.display = 'none';
+            showProjects();
+        };
     } catch (error) {
-        console.error('Error loading project:', error);
+        console.error('Error showing edit project form:', error);
         alert('Failed to load project: ' + error.message);
     }
-};
+}
 
-window.updateProject = async function updateProject() {
+// Fungsi untuk memperbarui proyek
+async function updateProject() {
     try {
-        const projectId = document.getElementById('editProjectForm').dataset.projectId;
+        const editForm = document.getElementById('editProjectForm');
+        const projectId = editForm.dataset.projectId;
         const projectName = document.getElementById('editProjectName').value.trim();
         const projectType = document.getElementById('editProjectType').value;
         const projectLink = document.getElementById('editProjectLink').value.trim();
@@ -594,15 +723,20 @@ window.updateProject = async function updateProject() {
         const user = auth.currentUser;
         if (!user) {
             editProjectMessage.textContent = 'Please login first';
+            showLogin();
             return;
         }
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
             editProjectMessage.textContent = 'User data not found';
+            await auth.signOut();
+            showLogin();
             return;
         }
         const userData = userDoc.data();
-        if (!userData.allowedTools && projectType === 'Tools' && !userData.isAdmin) {
+
+        if (projectType === 'Tools' && !userData.allowedTools && !userData.isAdmin) {
+            editProjectMessage.textContent = 'You do not have permission to edit Tools projects';
             alert('You do not have permission to edit Tools projects. Please request access from admin.');
             showMessageForm();
             return;
@@ -618,6 +752,11 @@ window.updateProject = async function updateProject() {
             return;
         }
 
+        if (new Date(startDate) > new Date(endDate)) {
+            editProjectMessage.textContent = 'End date must be after start date';
+            return;
+        }
+
         await db.collection('projects').doc(projectId).update({
             name: projectName,
             type: projectType,
@@ -628,26 +767,29 @@ window.updateProject = async function updateProject() {
             status
         });
         alert('Project updated successfully');
-        showProjects();
+        editForm.style.display = 'none';
+        showUserProjects();
     } catch (error) {
         console.error('Error updating project:', error);
         document.getElementById('editProjectMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.deleteProject = async function deleteProject(projectId) {
+// Fungsi untuk menghapus proyek
+async function deleteProject(projectId) {
     if (!confirm('Are you sure you want to delete this project?')) return;
     try {
         await db.collection('projects').doc(projectId).delete();
         alert('Project deleted successfully');
-        loadProjects();
+        showUserProjects();
     } catch (error) {
         console.error('Error deleting project:', error);
         alert('Error deleting project: ' + error.message);
     }
-};
+}
 
-window.showTutorial = async function showTutorial(projectId) {
+// Fungsi untuk menampilkan tutorial
+async function showTutorial(projectId) {
     try {
         const doc = await db.collection('projects').doc(projectId).get();
         if (!doc.exists) {
@@ -657,7 +799,7 @@ window.showTutorial = async function showTutorial(projectId) {
         const project = doc.data();
         const user = auth.currentUser;
         if (!user && project.type === 'Tools') {
-            alert('Please login to view Tools projects.');
+            alert('Please login to view Tools projects');
             showLogin();
             return;
         }
@@ -665,6 +807,8 @@ window.showTutorial = async function showTutorial(projectId) {
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (!userDoc.exists) {
                 alert('User data not found');
+                await auth.signOut();
+                showLogin();
                 return;
             }
             const userData = userDoc.data();
@@ -680,14 +824,170 @@ window.showTutorial = async function showTutorial(projectId) {
         document.getElementById('tutorialProjectLink').textContent = project.link;
         document.getElementById('tutorialDescription').textContent = project.description;
         document.getElementById('projectsContainer').style.display = 'none';
+        document.getElementById('userProjectsContainer').style.display = 'none';
         document.getElementById('tutorialContainer').style.display = 'block';
     } catch (error) {
-        console.error('Error loading tutorial:', error);
+        console.error('Error showing tutorial:', error);
         alert('Failed to load tutorial: ' + error.message);
     }
-};
+}
 
-window.showPendingUsers = async function showPendingUsers() {
+// Fungsi untuk menampilkan form pesan
+function showMessageForm() {
+    document.getElementById('actionsContainer').style.display = 'none';
+    document.getElementById('addProjectForm').style.display = 'none';
+    document.getElementById('tutorialContainer').style.display = 'none';
+    document.getElementById('userProjectsContainer').style.display = 'none';
+    document.getElementById('pendingUsersContainer').style.display = 'none';
+    document.getElementById('projectsContainer').style.display = 'none';
+    document.getElementById('messagesContainer').style.display = 'none';
+    document.getElementById('messageContainer').style.display = 'block';
+    document.getElementById('messageError').textContent = '';
+    document.getElementById('messageContent').value = '';
+}
+
+// Fungsi untuk menutup form pesan
+function closeMessageForm() {
+    showProjects();
+}
+
+// Fungsi untuk mengirim pesan
+async function sendMessage() {
+    try {
+        const messageContent = document.getElementById('messageContent').value.trim();
+        const messageError = document.getElementById('messageError');
+        messageError.textContent = '';
+
+        if (!messageContent) {
+            messageError.textContent = 'Please enter a message';
+            return;
+        }
+
+        const user = auth.currentUser;
+        if (!user) {
+            messageError.textContent = 'Please login first';
+            showLogin();
+            return;
+        }
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+            messageError.textContent = 'User data not found';
+            await auth.signOut();
+            showLogin();
+            return;
+        }
+
+        const userData = userDoc.data();
+        const adminSnapshot = await db.collection('users').where('isAdmin', '==', true).limit(1).get();
+        if (adminSnapshot.empty) {
+            messageError.textContent = 'No admin found';
+            return;
+        }
+        const adminData = adminSnapshot.docs[0].data();
+        const adminId = adminSnapshot.docs[0].id;
+
+        await db.collection('messages').add({
+            senderId: user.uid,
+            senderUsername: userData.username,
+            receiverId: adminId,
+            receiverUsername: adminData.username,
+            content: messageContent,
+            timestamp: new Date().toISOString(),
+            read: false
+        });
+
+        alert('Message sent successfully');
+        document.getElementById('messageContent').value = '';
+        await updateMessageCount();
+        closeMessageForm();
+    } catch (error) {
+        console.error('Error sending message:', error);
+        document.getElementById('messageError').textContent = 'Error: ' + error.message;
+    }
+}
+
+// Fungsi untuk menampilkan pesan
+async function showMessages() {
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            alert('Please login first');
+            showLogin();
+            return;
+        }
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+            alert('User data not found');
+            await auth.signOut();
+            showLogin();
+            return;
+        }
+
+        const userData = userDoc.data();
+        document.getElementById('actionsContainer').style.display = 'none';
+        document.getElementById('addProjectForm').style.display = 'none';
+        document.getElementById('tutorialContainer').style.display = 'none';
+        document.getElementById('userProjectsContainer').style.display = 'none';
+        document.getElementById('pendingUsersContainer').style.display = 'none';
+        document.getElementById('projectsContainer').style.display = 'none';
+        document.getElementById('messageContainer').style.display = 'none';
+        document.getElementById('messagesContainer').style.display = 'block';
+
+        const messagesList = document.getElementById('messagesList');
+        messagesList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+        const snapshot = await db
+            .collection('messages')
+            .where('senderId', '==', user.uid)
+            .orderBy('timestamp', 'desc')
+            .get();
+
+        const adminSnapshot = await db
+            .collection('messages')
+            .where('receiverId', '==', user.uid)
+            .orderBy('timestamp', 'desc')
+            .get();
+
+        const allMessages = [];
+        snapshot.forEach(doc => allMessages.push({ id: doc.id, ...doc.data() }));
+        adminSnapshot.forEach(doc => {
+            const msg = { id: doc.id, ...doc.data() };
+            allMessages.push(msg);
+            if (!msg.read && msg.receiverId === user.uid) {
+                db.collection('messages').doc(doc.id).update({ read: true });
+            }
+        });
+        allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        messagesList.innerHTML = '';
+        if (allMessages.length === 0) {
+            messagesList.innerHTML = '<p class="text-center">No messages found</p>';
+            return;
+        }
+
+        allMessages.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = 'border-bottom p-2';
+            div.innerHTML = `
+                <p><strong>From:</strong> ${msg.senderUsername}</p>
+                <p><strong>To:</strong> ${msg.receiverUsername}</p>
+                <p>${msg.content}</p>
+                <p><small>${new Date(msg.timestamp).toLocaleString()}</small></p>
+            `;
+            messagesList.appendChild(div);
+        });
+
+        await updateMessageCount();
+    } catch (error) {
+        console.error('Error showing messages:', error);
+        alert('Failed to load messages: ' + error.message);
+    }
+}
+
+// Fungsi untuk menampilkan pengguna tertunda (admin)
+async function showPendingUsers() {
     try {
         const user = auth.currentUser;
         const manageUsersMessage = document.getElementById('manageUsersMessage');
@@ -703,6 +1003,7 @@ window.showPendingUsers = async function showPendingUsers() {
         if (!userDoc.exists) {
             manageUsersMessage.textContent = 'User data not found';
             await auth.signOut();
+            showLogin();
             return;
         }
 
@@ -719,6 +1020,10 @@ window.showPendingUsers = async function showPendingUsers() {
         document.getElementById('pendingUsersContainer').style.display = 'block';
         document.getElementById('messagesContainer').style.display = 'none';
         document.getElementById('messageContainer').style.display = 'none';
+        document.getElementById('projectsContainer').style.display = 'none';
+        document.getElementById('userProjectsContainer').style.display = 'none';
+        document.getElementById('addProjectForm').style.display = 'none';
+        document.getElementById('tutorialContainer').style.display = 'none';
         const pendingUsersList = document.getElementById('pendingUsersList');
         const approvedUsersList = document.getElementById('approvedUsersList');
         pendingUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
@@ -771,13 +1076,15 @@ window.showPendingUsers = async function showPendingUsers() {
         console.error('Error showing pending users:', error);
         document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.approveUser = async function approveUser(pendingUserId) {
+// Fungsi untuk menyetujui pengguna
+async function approveUser(pendingUserId) {
     try {
         const user = auth.currentUser;
         if (!user) {
             alert('Please login first');
+            showLogin();
             return;
         }
 
@@ -812,9 +1119,10 @@ window.approveUser = async function approveUser(pendingUserId) {
         console.error('Error approving user:', error);
         document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.rejectUser = async function rejectUser(pendingUserId) {
+// Fungsi untuk menolak pengguna
+async function rejectUser(pendingUserId) {
     if (!confirm('Are you sure you want to reject this user?')) return;
     try {
         await db.collection('pendingUsers').doc(pendingUserId).delete();
@@ -824,14 +1132,16 @@ window.rejectUser = async function rejectUser(pendingUserId) {
         console.error('Error rejecting user:', error);
         document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.removeUser = async function removeUser(userId, username) {
+// Fungsi untuk menghapus pengguna
+async function removeUser(userId, username) {
     if (!confirm(`Are you sure you want to remove user ${username}? This action cannot be undone.`)) return;
     try {
         const user = auth.currentUser;
         if (!user) {
             alert('Please login first');
+            showLogin();
             return;
         }
 
@@ -853,13 +1163,15 @@ window.removeUser = async function removeUser(userId, username) {
         console.error('Error removing user:', error);
         document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
     }
-};
+}
 
-window.toggleToolsAccess = async function toggleToolsAccess(userId, allowedTools) {
+// Fungsi untuk mengaktifkan/menonaktifkan akses Tools
+async function toggleToolsAccess(userId, allowedTools) {
     try {
         const user = auth.currentUser;
         if (!user) {
             alert('Please login first');
+            showLogin();
             return;
         }
 
@@ -876,315 +1188,126 @@ window.toggleToolsAccess = async function toggleToolsAccess(userId, allowedTools
         console.error('Error updating tools access:', error);
         document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
     }
-};
-
-window.showUserProjects = async function showUserProjects() {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            return;
-        }
-
-        const userData = userDoc.data();
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'block';
-        document.getElementById('messagesContainer').style.display = 'none';
-        document.getElementById('messageContainer').style.display = 'none';
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('pendingUsersContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'none';
-        const userProjectsList = document.getElementById('userProjectsList');
-        userProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        const snapshot = await db.collection('projects').where('addedBy', '==', userData.username).get();
-        userProjectsList.innerHTML = '';
-        if (snapshot.empty) {
-            userProjectsList.innerHTML = '<p class="text-center">No projects found</p>';
-            return;
-        }
-        snapshot.forEach(doc => {
-            const project = doc.data();
-            const div = document.createElement('div');
-            div.className = 'col-md-4 mb-4';
-            div.innerHTML = `
-                <div class="card h-100">
-                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
-                    <div class="card-body">
-                        <h5 class="card-title">${project.name}</h5>
-                        <p class="card-text"><strong>Type:</strong> ${project.type}</p>
-                        <p class="card-text"><strong>Status:</strong> ${project.status}</p>
-                        <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
-                        <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
-                        <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
-                    </div>
-                </div>
-            `;
-            userProjectsList.appendChild(div);
-        });
-    } catch (error) {
-        console.error('Error loading user projects:', error);
-        alert('Failed to load user projects: ' + error.message);
-    }
-};
-
-window.goBack = function goBack() {
-    showProjects();
-};
-
-window.showMessageForm = function showMessageForm() {
-    document.getElementById('actionsContainer').style.display = 'none';
-    document.getElementById('addProjectForm').style.display = 'none';
-    document.getElementById('tutorialContainer').style.display = 'none';
-    document.getElementById('userProjectsContainer').style.display = 'none';
-    document.getElementById('pendingUsersContainer').style.display = 'none';
-    document.getElementById('projectsContainer').style.display = 'none';
-    document.getElementById('messagesContainer').style.display = 'none';
-    document.getElementById('messageContainer').style.display = 'block';
-    document.getElementById('messageError').textContent = '';
-};
-
-window.closeMessageForm = function closeMessageForm() {
-    showProjects();
-};
-
-window.sendMessage = async function sendMessage() {
-    try {
-        const messageContent = document.getElementById('messageContent').value.trim();
-        const messageError = document.getElementById('messageError');
-        messageError.textContent = '';
-
-        if (!messageContent) {
-            messageError.textContent = 'Please enter a message';
-            return;
-        }
-
-        const user = auth.currentUser;
-        if (!user) {
-            messageError.textContent = 'Please login first';
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            messageError.textContent = 'User data not found';
-            await auth.signOut();
-            return;
-        }
-
-        const userData = userDoc.data();
-        const adminSnapshot = await db.collection('users').where('isAdmin', '==', true).limit(1).get();
-        if (adminSnapshot.empty) {
-            messageError.textContent = 'No admin found';
-            return;
-        }
-        const adminData = adminSnapshot.docs[0].data();
-        const adminId = adminSnapshot.docs[0].id;
-
-        await db.collection('messages').add({
-            senderId: user.uid,
-            senderUsername: userData.username,
-            receiverId: adminId,
-            receiverUsername: adminData.username,
-            content: messageContent,
-            timestamp: new Date().toISOString(),
-            read: false
-        });
-
-        alert('Message sent successfully');
-        document.getElementById('messageContent').value = '';
-        await updateMessageCount();
-        showMessages();
-    } catch (error) {
-        console.error('Error sending message:', error);
-        document.getElementById('messageError').textContent = 'Error: ' + error.message;
-    }
-};
-
-window.showMessages = async function showMessages() {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            return;
-        }
-
-        const userData = userDoc.data();
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'none';
-        document.getElementById('pendingUsersContainer').style.display = 'none';
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('messageContainer').style.display = 'none';
-        document.getElementById('messagesContainer').style.display = 'block';
-
-        const messagesList = document.getElementById('messagesList');
-        messagesList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-        const snapshot = await db.collection('messages')
-            .where('senderId', '==', user.uid)
-            .orderBy('timestamp', 'desc')
-            .get();
-
-        const adminSnapshot = await db.collection('messages')
-            .where('receiverId', '==', user.uid)
-            .orderBy('timestamp', 'desc')
-            .get();
-
-        const allMessages = [];
-        snapshot.forEach(doc => allMessages.push({ id: doc.id, ...doc.data() }));
-        adminSnapshot.forEach(doc => {
-            const msg = { id: doc.id, ...doc.data() };
-            allMessages.push(msg);
-            if (!msg.read && msg.receiverId === user.uid) {
-                db.collection('messages').doc(doc.id).update({ read: true });
-            }
-        });
-        allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        messagesList.innerHTML = '';
-        if (allMessages.length === 0) {
-            messagesList.innerHTML = '<p class="text-center">No messages found</p>';
-            return;
-        }
-
-        allMessages.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = 'p-2 border-bottom';
-            div.innerHTML = `
-                <p><strong>${msg.senderUsername} to ${msg.receiverUsername}:</strong> ${msg.content}</p>
-                <p><small>${new Date(msg.timestamp).toLocaleString()}</small></p>
-                ${msg.senderId === user.uid ? '' : `
-                    <textarea class="form-control mb-2" id="reply_${msg.id}" rows="2" placeholder="Reply..."></textarea>
-                    <button class="btn btn-primary" onclick="sendReply('${msg.id}')">Reply</button>
-                `}
-            `;
-            messagesList.appendChild(div);
-        });
-
-        await updateMessageCount();
-    } catch (error) {
-        console.error('Error loading messages:', error);
-        alert('Failed to load messages: ' + error.message);
-    }
-};
-
-window.sendReply = async function sendReply(messageId) {
-    try {
-        const replyContent = document.getElementById(`reply_${messageId}`).value.trim();
-        if (!replyContent) {
-            alert('Please enter a reply');
-            return;
-        }
-
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            return;
-        }
-
-        const userData = userDoc.data();
-        const originalMessage = await db.collection('messages').doc(messageId).get();
-        if (!originalMessage.exists) {
-            alert('Message not found');
-            return;
-        }
-
-        const originalData = originalMessage.data();
-        await db.collection('messages').add({
-            senderId: user.uid,
-            senderUsername: userData.username,
-            receiverId: originalData.senderId,
-            receiverUsername: originalData.senderUsername,
-            content: replyContent,
-            timestamp: new Date().toISOString(),
-            read: false
-        });
-
-        alert('Reply sent successfully');
-        await updateMessageCount();
-        showMessages();
-    } catch (error) {
-        console.error('Error sending reply:', error);
-        alert('Error sending reply: ' + error.message);
-    }
-};
-
-async function loadPublicProjects() {
-    try {
-        const publicProjectsList = document.getElementById('projectsContainer').querySelector('.row');
-        publicProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        const snapshot = await db.collection('projects').where('status', '==', 'Berjalan').get();
-        publicProjectsList.innerHTML = '';
-        if (snapshot.empty) {
-            publicProjectsList.innerHTML = '<p class="text-center">No public projects</p>';
-            return;
-        }
-
-        const user = auth.currentUser;
-        let userData = null;
-        if (user) {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                userData = userDoc.data();
-            }
-        }
-
-        snapshot.forEach(doc => {
-            const project = doc.data();
-            if (project.type === 'Tools' && (!userData || !userData.allowedTools) && !userData?.isAdmin) {
-                return;
-            }
-            const div = document.createElement('div');
-            div.className = 'col-md-4 mb-4';
-            div.innerHTML = `
-                <div class="card h-100">
-                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
-                    <div class="card-body">
-                        <h5 class="card-title">${project.name}</h5>
-                        <p class="card-text"><strong>Type:</strong> ${project.type}</p>
-                        <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
-                        <button class="btn btn-primary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
-                    </div>
-                </div>
-            `;
-            publicProjectsList.appendChild(div);
-        });
-    } catch (error) {
-        console.error('Error loading public projects:', error);
-        alert('Failed to load public projects: ' + error.message);
-    }
 }
 
+// Fungsi untuk kembali ke halaman proyek
+function goBack() {
+    showProjects();
+}
+
+// Inisialisasi halaman
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        auth.onAuthStateChanged(async (user) => {
+        // Tombol Login
+        const loginButton = document.getElementById('loginButton');
+        if (loginButton) {
+            loginButton.addEventListener('click', login);
+        }
+
+        // Tombol Register (menuju form register)
+        const registerButton = document.getElementById('registerButton');
+        if (registerButton) {
+            registerButton.addEventListener('click', showRegisterForm);
+        }
+
+        // Tombol Forgot Password
+        const forgotPasswordButton = document.getElementById('forgotPasswordButton');
+        if (forgotPasswordButton) {
+            forgotPasswordButton.addEventListener('click', showForgotPassword);
+        }
+
+        // Tombol Submit Register
+        const submitRegisterButton = document.getElementById('submitRegisterButton');
+        if (submitRegisterButton) {
+            submitRegisterButton.addEventListener('click', register);
+        }
+
+        // Tombol Back to Login (dari form register)
+        const backToLoginButton = document.getElementById('backToLoginButton');
+        if (backToLoginButton) {
+            backToLoginButton.addEventListener('click', showLogin);
+        }
+
+        // Tombol Reset Password
+        const resetPasswordButton = document.getElementById('resetPasswordButton');
+        if (resetPasswordButton) {
+            resetPasswordButton.addEventListener('click', resetPassword);
+        }
+
+        // Tombol Back to Login (dari form reset password)
+        const backToLoginResetButton = document.getElementById('backToLoginResetButton');
+        if (backToLoginResetButton) {
+            backToLoginResetButton.addEventListener('click', showLogin);
+        }
+
+        // Tombol Logout
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', logout);
+        }
+
+        // Tombol Add Project
+        const addProjectButton = document.getElementById('addProjectButton');
+        if (addProjectButton) {
+            addProjectButton.addEventListener('click', showAddProjectForm);
+        }
+
+        // Tombol Submit Project
+        const submitProjectButton = document.getElementById('submitProjectButton');
+        if (submitProjectButton) {
+            submitProjectButton.addEventListener('click', addProject);
+        }
+
+        // Tombol Cancel Project
+        const cancelProjectButton = document.getElementById('cancelProjectButton');
+        if (cancelProjectButton) {
+            cancelProjectButton.addEventListener('click', showProjects);
+        }
+
+        // Tombol My Projects
+        const myProjectsButton = document.getElementById('myProjectsButton');
+        if (myProjectsButton) {
+            myProjectsButton.addEventListener('click', showUserProjects);
+        }
+
+        // Tombol Send Message to Admin
+        const messageFormButton = document.getElementById('messageFormButton');
+        if (messageFormButton) {
+            messageFormButton.addEventListener('click', showMessageForm);
+        }
+
+        // Tombol Send Message
+        const sendMessageButton = document.getElementById('sendMessageButton');
+        if (sendMessageButton) {
+            sendMessageButton.addEventListener('click', sendMessage);
+        }
+
+        // Tombol Close Message Form
+        const closeMessageButton = document.getElementById('closeMessageButton');
+        if (closeMessageButton) {
+            closeMessageButton.addEventListener('click', closeMessageForm);
+        }
+
+        // Tombol Messages
+        const messagesButton = document.getElementById('messagesButton');
+        if (messagesButton) {
+            messagesButton.addEventListener('click', showMessages);
+        }
+
+        // Tombol Pending Users
+        const pendingUsersButton = document.getElementById('pendingUsersButton');
+        if (pendingUsersButton) {
+            pendingUsersButton.addEventListener('click', showPendingUsers);
+        }
+
+        // Tombol Back
+        const backButtons = document.querySelectorAll('#backButton');
+        backButtons.forEach(button => {
+            button.addEventListener('click', goBack);
+        });
+
+        // Inisialisasi halaman
+        auth.onAuthStateChanged(async user => {
             if (user) {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (!userDoc.exists) {
@@ -1198,6 +1321,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     await db.collection('users').doc(user.uid).set(userData);
                     localStorage.setItem('user', JSON.stringify({ id: user.uid, ...userData }));
+                } else {
+                    const userData = { id: user.uid, ...userDoc.data() };
+                    localStorage.setItem('user', JSON.stringify(userData));
                 }
 
                 const userData = JSON.parse(localStorage.getItem('user'));

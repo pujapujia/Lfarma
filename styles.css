@@ -1,0 +1,73 @@
+/* styles.css */
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+.navbar {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+}
+
+.btn-primary {
+    background: #ff00ff;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #e600e6;
+}
+
+.btn-secondary {
+    background: #444;
+}
+
+.btn-secondary:hover {
+    background: #333;
+}
+
+.btn-success {
+    background: #00ff00;
+}
+
+.btn-success:hover {
+    background: #00cc00;
+}
+
+.btn-danger {
+    background: #ff4444;
+}
+
+.btn-danger:hover {
+    background: #cc0000;
+}
+
+.error-message {
+    color: #ff4444;
+    font-size: 0.9rem;
+}
+
+.add-project-card {
+    background: #2a2a3e !important;
+}
+
+.add-project-card .form-label {
+    color: #ff00ff !important;
+}
+
+.add-project-card .form-control,
+.add-project-card .form-select {
+    background-color: #1e1e2f !important;
+    color: white !important;
+    border: 1px solid #444 !important;
+}
+
+.add-project-card .form-control::placeholder,
+.add-project-card .form-select::placeholder {
+    color: #aaaaaa !important;
+}

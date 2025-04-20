@@ -47,15 +47,15 @@
                         </span>
                     </li>
                     <li class="nav-item">
-                        <button class="btn btn-primary" id="messagesButton" style="display: none;" onclick="showMessages()">
+                        <button class="btn btn-primary" id="messagesButton" style="display: none;">
                             Messages <span id="messageCount" class="badge bg-danger" style="display: none;"></span>
                         </button>
                     </li>
                     <li class="nav-item">
-                        <button class="btn btn-primary" id="pendingUsersButton" style="display: none;" onclick="showPendingUsers()">Pending Users</button>
+                        <button class="btn btn-primary" id="pendingUsersButton" style="display: none;">Pending Users</button>
                     </li>
                     <li class="nav-item">
-                        <button class="btn btn-danger" id="logoutButton" style="display: none;" onclick="logout()">Logout</button>
+                        <button class="btn btn-danger" id="logoutButton" style="display: none;">Logout</button>
                     </li>
                 </ul>
             </div>
@@ -74,9 +74,9 @@
                 <label for="password" class="form-label">Password</label>
                 <input type="password" class="form-control" id="password" placeholder="Enter password">
             </div>
-            <button class="btn btn-primary w-100" onclick="login()">Login</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showRegisterForm()">Register</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showForgotPassword()">Forgot Password</button>
+            <button class="btn btn-primary w-100" id="loginButton">Login</button>
+            <button class="btn btn-secondary w-100 mt-2" id="registerButton">Register</button>
+            <button class="btn btn-secondary w-100 mt-2" id="forgotPasswordButton">Forgot Password</button>
         </div>
     </div>
 
@@ -96,8 +96,8 @@
                 <label for="registerPassword" class="form-label">Password</label>
                 <input type="password" class="form-control" id="registerPassword" placeholder="Enter password">
             </div>
-            <button class="btn btn-primary w-100" onclick="register()">Register</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showLogin()">Back to Login</button>
+            <button class="btn btn-primary w-100" id="submitRegisterButton">Register</button>
+            <button class="btn btn-secondary w-100 mt-2" id="backToLoginButton">Back to Login</button>
         </div>
     </div>
 
@@ -109,17 +109,17 @@
                 <label for="resetEmail" class="form-label">Email</label>
                 <input type="email" class="form-control" id="resetEmail" placeholder="Enter email">
             </div>
-            <button class="btn btn-primary w-100" onclick="resetPassword()">Send Reset Email</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="showLogin()">Back to Login</button>
+            <button class="btn btn-primary w-100" id="resetPasswordButton">Send Reset Email</button>
+            <button class="btn btn-secondary w-100 mt-2" id="backToLoginResetButton">Back to Login</button>
         </div>
     </div>
 
     <div class="container mt-4" id="actionsContainer" style="display: none;">
         <div class="card p-4 mb-4">
             <h2>Actions</h2>
-            <button class="btn btn-primary w-100 mb-2" onclick="showAddProjectForm()">Add Project</button>
-            <button class="btn btn-primary w-100 mb-2" onclick="showUserProjects()">My Projects</button>
-            <button class="btn btn-primary w-100 mb-2" onclick="showMessageForm()">Send Message to Admin</button>
+            <button class="btn btn-primary w-100 mb-2" id="addProjectButton">Add Project</button>
+            <button class="btn btn-primary w-100 mb-2" id="myProjectsButton">My Projects</button>
+            <button class="btn btn-primary w-100 mb-2" id="messageFormButton">Send Message to Admin</button>
         </div>
     </div>
 
@@ -158,8 +158,8 @@
             <label for="endDate" class="form-label">End Date</label>
             <input type="date" class="form-control" id="endDate">
         </div>
-        <button class="btn btn-primary w-100" onclick="addProject()">Add Project</button>
-        <button class="btn btn-secondary w-100 mt-2" onclick="showProjects()">Cancel</button>
+        <button class="btn btn-primary w-100" id="submitProjectButton">Add Project</button>
+        <button class="btn btn-secondary w-100 mt-2" id="cancelProjectButton">Cancel</button>
     </div>
 
     <div class="container mt-4" id="projectsContainer" style="display: none;">
@@ -174,8 +174,8 @@
                 <label for="messageContent" class="form-label">Message</label>
                 <textarea class="form-control" id="messageContent" rows="4" placeholder="Enter your message"></textarea>
             </div>
-            <button class="btn btn-primary w-100" onclick="sendMessage()">Send</button>
-            <button class="btn btn-secondary w-100 mt-2" onclick="closeMessageForm()">Cancel</button>
+            <button class="btn btn-primary w-100" id="sendMessageButton">Send</button>
+            <button class="btn btn-secondary w-100 mt-2" id="closeMessageButton">Cancel</button>
         </div>
     </div>
 
@@ -183,7 +183,7 @@
         <div class="card p-4">
             <h2>Messages</h2>
             <div id="messagesList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
         </div>
     </div>
 
@@ -191,7 +191,7 @@
         <div class="card p-4">
             <h2>My Projects</h2>
             <div class="row" id="userProjectsList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
         </div>
     </div>
 
@@ -203,7 +203,7 @@
             <div id="pendingUsersList" class="mb-4"></div>
             <h3>Approved Users</h3>
             <div id="approvedUsersList"></div>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
         </div>
     </div>
 
@@ -212,7 +212,7 @@
             <h2 id="tutorialProjectName"></h2>
             <p><strong>Link:</strong> <a id="tutorialProjectLink" href="#" target="_blank"></a></p>
             <p><strong>Description:</strong> <span id="tutorialDescription"></span></p>
-            <button class="btn btn-secondary w-100 mt-3" onclick="goBack()">Back</button>
+            <button class="btn btn-secondary w-100 mt-3" id="backButton">Back</button>
         </div>
     </div>
 
@@ -220,6 +220,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="/app.js"></script>
+    <script type="module" src="/app.js"></script>
 </body>
 </html>
