@@ -47,14 +47,6 @@ body {
     background: #c82333;
 }
 
-.btn-success {
-    background: #28a745;
-}
-
-.btn-success:hover {
-    background: #218838;
-}
-
 .error-message {
     color: #ff4444;
     font-size: 0.9rem;
