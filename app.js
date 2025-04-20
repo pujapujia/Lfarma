@@ -1,1365 +1,592 @@
 // app.js
+import firebase from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js';
+import 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js';
+import 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js';
 import config from './config.js';
 
-// Nonaktifkan Metamask untuk mencegah error
-window.ethereum = null;
+const app = firebase.initializeApp(config.firebase);
+const db = app.firestore();
+const auth = app.auth();
+console.log('Firebase initialized successfully');
 
-// Inisialisasi Firebase
-try {
-    firebase.initializeApp(config.firebase);
-    console.log('Firebase initialized successfully');
-} catch (error) {
-    console.error('Error initializing Firebase:', error);
-    alert('Failed to initialize Firebase. Please check configuration and try again.');
-}
-
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-// Fungsi untuk memeriksa keberadaan halaman
-async function checkPageExists(url) {
-    try {
-        console.log('Checking page existence:', url);
-        const response = await fetch(url, { method: 'HEAD' });
-        console.log('Page check result:', url, response.ok);
-        return response.ok;
-    } catch (error) {
-        console.error('Error checking page:', url, error);
-        return false;
-    }
-}
-
-// Fungsi untuk memperbarui jumlah pesan belum dibaca
-async function updateMessageCount() {
-    try {
-        const user = auth.currentUser;
-        if (!user) return;
-
-        const snapshot = await db
-            .collection('messages')
-            .where('receiverId', '==', user.uid)
-            .where('read', '==', false)
-            .get();
-
-        const count = snapshot.size;
-        const messageCountElement = document.getElementById('messageCount');
-        if (count > 0) {
-            messageCountElement.textContent = count;
-            messageCountElement.style.display = 'inline-block';
-        } else {
-            messageCountElement.style.display = 'none';
-        }
-        console.log('Message count updated:', count);
-    } catch (error) {
-        console.error('Error updating message count:', error);
-    }
-}
-
-// Fungsi Login
-async function login() {
-    try {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const loginMessage = document.getElementById('loginMessage');
-        loginMessage.textContent = '';
-
-        if (!email || !password) {
-            loginMessage.textContent = 'Please enter email and password';
-            return;
-        }
-
-        console.log('Login attempt:', { email });
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        console.log('Firebase Auth user:', user.uid);
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            console.log('User data not found, creating new document for:', user.uid);
-            const userData = {
-                username: email.split('@')[0],
-                email: email,
-                isAdmin: email === 'leviathan@lfarm.com',
-                allowedTools: email === 'leviathan@lfarm.com',
-                createdAt: { timestamp: new Date().toISOString() }
-            };
-            await db.collection('users').doc(user.uid).set(userData);
-            localStorage.setItem('user', JSON.stringify({ id: user.uid, ...userData }));
-        } else {
-            const userData = { id: user.uid, ...userDoc.data() };
-            localStorage.setItem('user', JSON.stringify(userData));
-        }
-
-        const userData = JSON.parse(localStorage.getItem('user'));
-        console.log('User data loaded:', userData);
-        document.getElementById('usernameText').textContent = userData.username;
-        document.getElementById('loginContainer').style.display = 'none';
-        document.getElementById('logoutButton').style.display = 'block';
-        document.getElementById('navbarUsername').style.display = 'inline-block';
-        document.getElementById('messagesButton').style.display = 'inline-block';
-        document.getElementById('actionsContainer').style.display = 'block';
-        if (userData.isAdmin) {
-            document.getElementById('pendingUsersButton').style.display = 'inline-block';
-        }
-
-        await updateMessageCount();
-
-        const targetPage = userData.isAdmin ? '/admin.html' : '/user.html';
-        const pageExists = await checkPageExists(window.location.origin + targetPage);
-        if (pageExists) {
-            console.log('Redirecting to:', targetPage);
-            window.location.href = targetPage;
-        } else {
-            console.warn(`Page ${targetPage} not found, staying on home`);
-            alert(`Page ${targetPage} not found. Staying on home.`);
-        }
-    } catch (error) {
-        console.error('Error logging in:', error);
-        let message = 'Login failed: ';
-        switch (error.code) {
-            case 'auth/invalid-email':
-                message += 'Invalid email format';
-                break;
-            case 'auth/user-not-found':
-            case 'auth/wrong-password':
-                message += 'Incorrect email or password';
-                break;
-            case 'auth/too-many-requests':
-                message += 'Too many attempts, try again later';
-                break;
-            default:
-                message += error.message;
-        }
-        document.getElementById('loginMessage').textContent = message;
-    }
-}
-
-// Fungsi Logout
-async function logout() {
-    try {
-        await auth.signOut();
-        localStorage.removeItem('user');
-        document.getElementById('logoutButton').style.display = 'none';
-        document.getElementById('navbarUsername').style.display = 'none';
-        document.getElementById('messagesButton').style.display = 'none';
-        document.getElementById('pendingUsersButton').style.display = 'none';
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('loginContainer').style.display = 'block';
-        window.location.href = '/';
-    } catch (error) {
-        console.error('Error logging out:', error);
-        alert('Error logging out: ' + error.message);
-    }
-}
-
-// Fungsi Register
-async function register() {
-    try {
-        const username = document.getElementById('registerUsername').value.trim();
-        const email = document.getElementById('registerEmail').value.trim();
-        const password = document.getElementById('registerPassword').value.trim();
-        const registerMessage = document.getElementById('registerMessage');
-        registerMessage.textContent = '';
-
-        console.log('Register attempt:', { username, email });
-
-        if (!username || !email || !password) {
-            registerMessage.textContent = 'Please fill all fields';
-            console.log('Missing fields:', { username, email, password });
-            return;
-        }
-
-        if (username.length < 3) {
-            registerMessage.textContent = 'Username must be at least 3 characters';
-            console.log('Invalid username length:', username);
-            return;
-        }
-
-        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            registerMessage.textContent = 'Please enter a valid email';
-            console.log('Invalid email format:', email);
-            return;
-        }
-
-        if (password.length < 6) {
-            registerMessage.textContent = 'Password must be at least 6 characters';
-            console.log('Invalid password length:', password);
-            return;
-        }
-
-        const pendingSnapshot = await db.collection('pendingUsers').where('email', '==', email).get();
-        if (!pendingSnapshot.empty) {
-            registerMessage.textContent = 'Email is already pending approval';
-            console.log('Email already pending:', email);
-            return;
-        }
-
-        const userSnapshot = await db.collection('users').where('email', '==', email).get();
-        if (!userSnapshot.empty) {
-            registerMessage.textContent = 'Email is already registered';
-            console.log('Email already registered:', email);
-            return;
-        }
-
-        const pendingUserData = {
-            username,
-            email,
-            password,
-            isAdmin: false,
-            allowedTools: false,
-            createdAt: { timestamp: new Date().toISOString() }
-        };
-        console.log('Saving pending user:', pendingUserData);
-        await db.collection('pendingUsers').add(pendingUserData);
-        console.log('Pending user saved successfully');
-        alert('Registration submitted, awaiting admin approval');
-        showLogin();
-    } catch (error) {
-        console.error('Error registering:', error);
-        document.getElementById('registerMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi Reset Password
-async function resetPassword() {
-    try {
-        const email = document.getElementById('resetEmail').value.trim();
-        const resetMessage = document.getElementById('resetMessage');
-        resetMessage.textContent = '';
-
-        if (!email) {
-            resetMessage.textContent = 'Please enter your email';
-            return;
-        }
-
-        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            resetMessage.textContent = 'Please enter a valid email';
-            return;
-        }
-
-        console.log('Reset password attempt:', { email });
-        await auth.sendPasswordResetEmail(email);
-        alert('Password reset email sent. Check your inbox.');
-        showLogin();
-    } catch (error) {
-        console.error('Error resetting password:', error);
-        let message = 'Error: ';
-        switch (error.code) {
-            case 'auth/invalid-email':
-                message += 'Invalid email format';
-                break;
-            case 'auth/user-not-found':
-                message += 'Email not found';
-                break;
-            default:
-                message += error.message;
-        }
-        document.getElementById('resetMessage').textContent = message;
-    }
-}
-
-// Fungsi untuk menampilkan form register
-function showRegisterForm() {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('registerContainer').style.display = 'block';
-    document.getElementById('resetPasswordContainer').style.display = 'none';
-    document.getElementById('loginMessage').textContent = '';
-}
-
-// Fungsi untuk menampilkan form lupa password
-function showForgotPassword() {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('registerContainer').style.display = 'none';
-    document.getElementById('resetPasswordContainer').style.display = 'block';
-    document.getElementById('loginMessage').textContent = '';
-}
-
-// Fungsi untuk kembali ke login
-function showLogin() {
-    document.getElementById('loginContainer').style.display = 'block';
-    document.getElementById('registerContainer').style.display = 'none';
-    document.getElementById('resetPasswordContainer').style.display = 'none';
-    document.getElementById('registerMessage').textContent = '';
-    document.getElementById('resetMessage').textContent = '';
-}
-
-// Fungsi untuk menampilkan form tambah proyek
-async function showAddProjectForm() {
-    try {
-        const user = auth.currentUser;
-        const projectTypeSelect = document.getElementById('projectType');
-        const addProjectMessage = document.getElementById('addProjectMessage');
-
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'block';
-        addProjectMessage.textContent = '';
-        document.getElementById('projectName').value = '';
-        document.getElementById('projectType').value = 'Testnet';
-        document.getElementById('projectLink').value = '';
-        document.getElementById('projectDescription').value = '';
-        document.getElementById('startDate').value = '';
-        document.getElementById('endDate').value = '';
-        document.getElementById('projectImage').value = '';
-
-        projectTypeSelect.innerHTML = `
-            <option value="Testnet">Testnet</option>
-            <option value="Retro">Retro</option>
-            <option value="Garapan">Garapan</option>
-        `;
-        if (user) {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                if (userData.allowedTools || userData.isAdmin) {
-                    projectTypeSelect.innerHTML += `<option value="Tools">Tools</option>`;
-                    console.log('Tools option added for user:', userData.username);
-                } else {
-                    console.log('Tools option hidden for user:', userData.username);
-                }
-            } else {
-                addProjectMessage.textContent = 'User data not found';
-                await auth.signOut();
-                showLogin();
-                return;
-            }
-        } else {
-            addProjectMessage.textContent = 'Please login first';
-            showLogin();
-            return;
-        }
-    } catch (error) {
-        console.error('Error showing add project form:', error);
-        document.getElementById('addProjectMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menambah proyek dengan Cloudinary
-async function addProject() {
-    try {
-        const projectName = document.getElementById('projectName').value.trim();
-        const projectType = document.getElementById('projectType').value;
-        const projectLink = document.getElementById('projectLink').value.trim();
-        const projectDescription = document.getElementById('projectDescription').value.trim();
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-        const projectImage = document.getElementById('projectImage').files[0];
-        const addProjectMessage = document.getElementById('addProjectMessage');
-        addProjectMessage.textContent = '';
-
-        console.log('Add project attempt:', {
-            projectName,
-            projectType,
-            projectLink,
-            projectDescription,
-            startDate,
-            endDate,
-            hasImage: !!projectImage
-        });
-
-        const user = auth.currentUser;
-        if (!user) {
-            addProjectMessage.textContent = 'Please login first';
-            console.log('No authenticated user');
-            showLogin();
-            return;
-        }
-
-        console.log('Authenticated user:', user.uid);
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            addProjectMessage.textContent = 'User data not found';
-            console.log('User document not found for UID:', user.uid);
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-
-        const userData = userDoc.data();
-        console.log('User data:', userData);
-
-        if (projectType === 'Tools' && !userData.allowedTools && !userData.isAdmin) {
-            addProjectMessage.textContent = 'You do not have permission to add Tools projects';
-            console.log('User lacks permission for Tools project');
-            alert('You do not have permission to add Tools projects. Please request access from admin.');
-            showMessageForm();
-            return;
-        }
-
-        if (!projectName || !projectType || !projectLink || !projectDescription || !startDate || !endDate) {
-            addProjectMessage.textContent = 'Please fill all fields';
-            console.log('Missing required fields');
-            return;
-        }
-
-        if (!projectLink.match(/^https?:\/\/.+/)) {
-            addProjectMessage.textContent = 'Please enter a valid URL';
-            console.log('Invalid URL:', projectLink);
-            return;
-        }
-
-        if (new Date(startDate) > new Date(endDate)) {
-            addProjectMessage.textContent = 'End date must be after start date';
-            console.log('Invalid date range:', { startDate, endDate });
-            return;
-        }
-
-        let imageUrl = '';
-        if (projectImage) {
-            console.log('Uploading image:', projectImage.name, 'Size:', projectImage.size, 'Type:', projectImage.type);
-            if (projectImage.size > 5 * 1024 * 1024) {
-                addProjectMessage.textContent = 'Image size must be less than 5MB';
-                console.log('Image too large:', projectImage.size);
-                return;
-            }
-            if (!['image/jpeg', 'image/png', 'image/gif'].includes(projectImage.type)) {
-                addProjectMessage.textContent = 'Only JPG, PNG, or GIF images are allowed';
-                console.log('Invalid image type:', projectImage.type);
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', projectImage);
-            formData.append('upload_preset', config.cloudinary.uploadPreset);
-            formData.append('cloud_name', config.cloudinary.cloudName);
-
-            try {
-                const response = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudinary.cloudName}/image/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (data.secure_url) {
-                    imageUrl = data.secure_url;
-                    console.log('Image uploaded successfully:', imageUrl);
-                } else {
-                    throw new Error('Cloudinary upload failed: ' + (data.error?.message || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Image upload failed:', error);
-                addProjectMessage.textContent = 'Failed to upload image: ' + error.message;
-                return;
-            }
-        }
-
-        const projectData = {
-            name: projectName,
-            type: projectType,
-            link: projectLink,
-            description: projectDescription,
-            startDate,
-            endDate,
-            status: 'Berjalan',
-            addedBy: userData.username,
-            imageUrl: imageUrl || '',
-            createdAt: { timestamp: new Date().toISOString() }
-        };
-
-        console.log('Saving project to Firestore:', projectData);
-        await db.collection('projects').add(projectData);
-        console.log('Project saved successfully');
-        alert('Project added successfully');
-        showProjects();
-    } catch (error) {
-        console.error('Error adding project:', error);
-        let message = 'Failed to add project: ';
-        switch (error.code) {
-            case 'permission-denied':
-                message += 'You do not have permission to add projects. Check Firebase rules.';
-                break;
-            default:
-                message += error.message;
-        }
-        addProjectMessage.textContent = message;
-    }
-}
-
-// Fungsi untuk menampilkan proyek
-function showProjects() {
-    document.getElementById('actionsContainer').style.display = 'block';
-    document.getElementById('addProjectForm').style.display = 'none';
-    document.getElementById('messageContainer').style.display = 'none';
-    document.getElementById('messagesContainer').style.display = 'none';
-    document.getElementById('userProjectsContainer').style.display = 'none';
-    document.getElementById('pendingUsersContainer').style.display = 'none';
-    document.getElementById('tutorialContainer').style.display = 'none';
-    document.getElementById('projectsContainer').style.display = 'flex';
-    loadPublicProjects();
-}
-
-// Fungsi untuk memuat proyek publik
-async function loadPublicProjects() {
-    try {
-        const projectsContainer = document.getElementById('projectsContainer').querySelector('.row');
-        projectsContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        const snapshot = await db.collection('projects').get();
-        projectsContainer.innerHTML = '';
-        if (snapshot.empty) {
-            projectsContainer.innerHTML = '<p class="text-center">No projects found</p>';
-            return;
-        }
-
-        const user = auth.currentUser;
-        let userData = null;
-        if (user) {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                userData = userDoc.data();
-            }
-        }
-
-        snapshot.forEach(doc => {
-            const project = doc.data();
-            // Sembunyikan proyek tipe Tools untuk pengguna yang tidak punya akses
-            if (project.type === 'Tools' && (!userData || (!userData.allowedTools && !userData.isAdmin))) {
-                return;
-            }
-            const div = document.createElement('div');
-            div.className = 'col-md-4 mb-4';
-            div.innerHTML = `
-                <div class="card h-100">
-                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
-                    <div class="card-body">
-                        <h5 class="card-title">${project.name}</h5>
-                        <p class="card-text"><strong>Type:</strong> ${project.type}</p>
-                        <p class="card-text"><strong>Status:</strong> ${project.status}</p>
-                        <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
-                        <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
-                    </div>
-                </div>
-            `;
-            projectsContainer.appendChild(div);
-        });
-    } catch (error) {
-        console.error('Error loading public projects:', error);
-        projectsContainer.innerHTML = '<p class="text-center">Failed to load projects. Please try again later.</p>';
-    }
-}
-
-// Fungsi untuk menampilkan proyek pengguna
-async function showUserProjects() {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-
-        const userData = userDoc.data();
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'block';
-        document.getElementById('messagesContainer').style.display = 'none';
-        document.getElementById('messageContainer').style.display = 'none';
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('pendingUsersContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'none';
-        const userProjectsList = document.getElementById('userProjectsList');
-        userProjectsList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        const snapshot = await db.collection('projects').where('addedBy', '==', userData.username).get();
-        userProjectsList.innerHTML = '';
-        if (snapshot.empty) {
-            userProjectsList.innerHTML = '<p class="text-center">No projects found</p>';
-            return;
-        }
-        snapshot.forEach(doc => {
-            const project = doc.data();
-            const div = document.createElement('div');
-            div.className = 'col-md-4 mb-4';
-            div.innerHTML = `
-                <div class="card h-100">
-                    ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
-                    <div class="card-body">
-                        <h5 class="card-title">${project.name}</h5>
-                        <p class="card-text"><strong>Type:</strong> ${project.type}</p>
-                        <p class="card-text"><strong>Status:</strong> ${project.status}</p>
-                        <button class="btn btn-primary me-2" onclick="showEditProjectForm('${doc.id}')">Edit</button>
-                        <button class="btn btn-danger me-2" onclick="deleteProject('${doc.id}')">Delete</button>
-                        <button class="btn btn-secondary" onclick="showTutorial('${doc.id}')">View Tutorial</button>
-                    </div>
-                </div>
-            `;
-            userProjectsList.appendChild(div);
-        });
-    } catch (error) {
-        console.error('Error loading user projects:', error);
-        alert('Failed to load user projects: ' + error.message);
-    }
-}
-
-// Fungsi untuk menampilkan form edit proyek
-async function showEditProjectForm(projectId) {
-    try {
-        const doc = await db.collection('projects').doc(projectId).get();
-        if (!doc.exists) {
-            alert('Project not found');
-            return;
-        }
-        const project = doc.data();
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-        const userData = userDoc.data();
-        if (!userData.isAdmin && project.addedBy !== userData.username) {
-            alert('You do not have permission to edit this project');
-            return;
-        }
-
-        // Buat form edit jika belum ada
-        let editForm = document.getElementById('editProjectForm');
-        if (!editForm) {
-            editForm = document.createElement('div');
-            editForm.id = 'editProjectForm';
-            editForm.className = 'card p-4 mb-4 add-project-card';
-            editForm.style.display = 'none';
-            editForm.innerHTML = `
-                <h2 class="text-center">Edit Project</h2>
-                <p class="error-message" id="editProjectMessage"></p>
-                <div class="mb-3">
-                    <label for="editProjectName" class="form-label">Project Name</label>
-                    <input type="text" class="form-control" id="editProjectName" placeholder="Enter project name">
-                </div>
-                <div class="mb-3">
-                    <label for="editProjectType" class="form-label">Type</label>
-                    <select class="form-select" id="editProjectType">
-                        <option value="Testnet">Testnet</option>
-                        <option value="Retro">Retro</option>
-                        <option value="Garapan">Garapan</option>
-                        ${userData.allowedTools || userData.isAdmin ? '<option value="Tools">Tools</option>' : ''}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="editProjectLink" class="form-label">Project Link</label>
-                    <input type="url" class="form-control" id="editProjectLink" placeholder="Enter project URL">
-                </div>
-                <div class="mb-3">
-                    <label for="editProjectDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="editProjectDescription" rows="4" placeholder="Enter description"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="editStartDate" class="form-label">Start Date</label>
-                    <input type="date" class="form-control" id="editStartDate">
-                </div>
-                <div class="mb-3">
-                    <label for="editEndDate" class="form-label">End Date</label>
-                    <input type="date" class="form-control" id="editEndDate">
-                </div>
-                <div class="mb-3">
-                    <label for="editProjectStatus" class="form-label">Status</label>
-                    <select class="form-select" id="editProjectStatus">
-                        <option value="Berjalan">Berjalan</option>
-                        <option value="Selesai">Selesai</option>
-                        <option value="Dibatalkan">Dibatalkan</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary w-100" id="submitEditProjectButton">Update Project</button>
-                <button class="btn btn-secondary w-100 mt-2" id="cancelEditProjectButton">Cancel</button>
-            `;
-            document.body.appendChild(editForm);
-        }
-
-        document.getElementById('editProjectName').value = project.name;
-        document.getElementById('editProjectType').value = project.type;
-        document.getElementById('editProjectLink').value = project.link;
-        document.getElementById('editProjectDescription').value = project.description;
-        document.getElementById('editStartDate').value = project.startDate;
-        document.getElementById('editEndDate').value = project.endDate;
-        document.getElementById('editProjectStatus').value = project.status;
-        editForm.dataset.projectId = projectId;
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'none';
-        editForm.style.display = 'block';
-        document.getElementById('editProjectMessage').textContent = '';
-
-        // Tambahkan event listener untuk tombol edit
-        document.getElementById('submitEditProjectButton').onclick = updateProject;
-        document.getElementById('cancelEditProjectButton').onclick = () => {
-            editForm.style.display = 'none';
-            showProjects();
-        };
-    } catch (error) {
-        console.error('Error showing edit project form:', error);
-        alert('Failed to load project: ' + error.message);
-    }
-}
-
-// Fungsi untuk memperbarui proyek
-async function updateProject() {
-    try {
-        const editForm = document.getElementById('editProjectForm');
-        const projectId = editForm.dataset.projectId;
-        const projectName = document.getElementById('editProjectName').value.trim();
-        const projectType = document.getElementById('editProjectType').value;
-        const projectLink = document.getElementById('editProjectLink').value.trim();
-        const projectDescription = document.getElementById('editProjectDescription').value.trim();
-        const startDate = document.getElementById('editStartDate').value;
-        const endDate = document.getElementById('editEndDate').value;
-        const status = document.getElementById('editProjectStatus').value;
-        const editProjectMessage = document.getElementById('editProjectMessage');
-        editProjectMessage.textContent = '';
-
-        const user = auth.currentUser;
-        if (!user) {
-            editProjectMessage.textContent = 'Please login first';
-            showLogin();
-            return;
-        }
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            editProjectMessage.textContent = 'User data not found';
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-        const userData = userDoc.data();
-
-        if (projectType === 'Tools' && !userData.allowedTools && !userData.isAdmin) {
-            editProjectMessage.textContent = 'You do not have permission to edit Tools projects';
-            alert('You do not have permission to edit Tools projects. Please request access from admin.');
-            showMessageForm();
-            return;
-        }
-
-        if (!projectName || !projectType || !projectLink || !projectDescription || !startDate || !endDate) {
-            editProjectMessage.textContent = 'Please fill all fields';
-            return;
-        }
-
-        if (!projectLink.match(/^https?:\/\/.+/)) {
-            editProjectMessage.textContent = 'Please enter a valid URL';
-            return;
-        }
-
-        if (new Date(startDate) > new Date(endDate)) {
-            editProjectMessage.textContent = 'End date must be after start date';
-            return;
-        }
-
-        await db.collection('projects').doc(projectId).update({
-            name: projectName,
-            type: projectType,
-            link: projectLink,
-            description: projectDescription,
-            startDate,
-            endDate,
-            status
-        });
-        alert('Project updated successfully');
-        editForm.style.display = 'none';
-        showUserProjects();
-    } catch (error) {
-        console.error('Error updating project:', error);
-        document.getElementById('editProjectMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menghapus proyek
-async function deleteProject(projectId) {
-    if (!confirm('Are you sure you want to delete this project?')) return;
-    try {
-        await db.collection('projects').doc(projectId).delete();
-        alert('Project deleted successfully');
-        showUserProjects();
-    } catch (error) {
-        console.error('Error deleting project:', error);
-        alert('Error deleting project: ' + error.message);
-    }
-}
-
-// Fungsi untuk menampilkan tutorial
-async function showTutorial(projectId) {
-    try {
-        const doc = await db.collection('projects').doc(projectId).get();
-        if (!doc.exists) {
-            alert('Project not found');
-            return;
-        }
-        const project = doc.data();
-        const user = auth.currentUser;
-        if (!user && project.type === 'Tools') {
-            alert('Please login to view Tools projects');
-            showLogin();
-            return;
-        }
-        if (user) {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (!userDoc.exists) {
-                alert('User data not found');
-                await auth.signOut();
-                showLogin();
-                return;
-            }
-            const userData = userDoc.data();
-            if (!userData.allowedTools && project.type === 'Tools' && !userData.isAdmin) {
-                alert('You do not have permission to view Tools projects. Please request access from admin.');
-                showMessageForm();
-                return;
-            }
-        }
-
-        document.getElementById('tutorialProjectName').textContent = project.name;
-        document.getElementById('tutorialProjectLink').href = project.link;
-        document.getElementById('tutorialProjectLink').textContent = project.link;
-        document.getElementById('tutorialDescription').textContent = project.description;
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'block';
-    } catch (error) {
-        console.error('Error showing tutorial:', error);
-        alert('Failed to load tutorial: ' + error.message);
-    }
-}
-
-// Fungsi untuk menampilkan form pesan
-function showMessageForm() {
-    document.getElementById('actionsContainer').style.display = 'none';
-    document.getElementById('addProjectForm').style.display = 'none';
-    document.getElementById('tutorialContainer').style.display = 'none';
-    document.getElementById('userProjectsContainer').style.display = 'none';
-    document.getElementById('pendingUsersContainer').style.display = 'none';
-    document.getElementById('projectsContainer').style.display = 'none';
-    document.getElementById('messagesContainer').style.display = 'none';
-    document.getElementById('messageContainer').style.display = 'block';
-    document.getElementById('messageError').textContent = '';
-    document.getElementById('messageContent').value = '';
-}
-
-// Fungsi untuk menutup form pesan
-function closeMessageForm() {
-    showProjects();
-}
-
-// Fungsi untuk mengirim pesan
-async function sendMessage() {
-    try {
-        const messageContent = document.getElementById('messageContent').value.trim();
-        const messageError = document.getElementById('messageError');
-        messageError.textContent = '';
-
-        if (!messageContent) {
-            messageError.textContent = 'Please enter a message';
-            return;
-        }
-
-        const user = auth.currentUser;
-        if (!user) {
-            messageError.textContent = 'Please login first';
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            messageError.textContent = 'User data not found';
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-
-        const userData = userDoc.data();
-        const adminSnapshot = await db.collection('users').where('isAdmin', '==', true).limit(1).get();
-        if (adminSnapshot.empty) {
-            messageError.textContent = 'No admin found';
-            return;
-        }
-        const adminData = adminSnapshot.docs[0].data();
-        const adminId = adminSnapshot.docs[0].id;
-
-        await db.collection('messages').add({
-            senderId: user.uid,
-            senderUsername: userData.username,
-            receiverId: adminId,
-            receiverUsername: adminData.username,
-            content: messageContent,
-            timestamp: new Date().toISOString(),
-            read: false
-        });
-
-        alert('Message sent successfully');
-        document.getElementById('messageContent').value = '';
-        await updateMessageCount();
-        closeMessageForm();
-    } catch (error) {
-        console.error('Error sending message:', error);
-        document.getElementById('messageError').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menampilkan pesan
-async function showMessages() {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            alert('User data not found');
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-
-        const userData = userDoc.data();
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'none';
-        document.getElementById('pendingUsersContainer').style.display = 'none';
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('messageContainer').style.display = 'none';
-        document.getElementById('messagesContainer').style.display = 'block';
-
-        const messagesList = document.getElementById('messagesList');
-        messagesList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-        const snapshot = await db
-            .collection('messages')
-            .where('senderId', '==', user.uid)
-            .orderBy('timestamp', 'desc')
-            .get();
-
-        const adminSnapshot = await db
-            .collection('messages')
-            .where('receiverId', '==', user.uid)
-            .orderBy('timestamp', 'desc')
-            .get();
-
-        const allMessages = [];
-        snapshot.forEach(doc => allMessages.push({ id: doc.id, ...doc.data() }));
-        adminSnapshot.forEach(doc => {
-            const msg = { id: doc.id, ...doc.data() };
-            allMessages.push(msg);
-            if (!msg.read && msg.receiverId === user.uid) {
-                db.collection('messages').doc(doc.id).update({ read: true });
-            }
-        });
-        allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        messagesList.innerHTML = '';
-        if (allMessages.length === 0) {
-            messagesList.innerHTML = '<p class="text-center">No messages found</p>';
-            return;
-        }
-
-        allMessages.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = 'border-bottom p-2';
-            div.innerHTML = `
-                <p><strong>From:</strong> ${msg.senderUsername}</p>
-                <p><strong>To:</strong> ${msg.receiverUsername}</p>
-                <p>${msg.content}</p>
-                <p><small>${new Date(msg.timestamp).toLocaleString()}</small></p>
-            `;
-            messagesList.appendChild(div);
-        });
-
-        await updateMessageCount();
-    } catch (error) {
-        console.error('Error showing messages:', error);
-        alert('Failed to load messages: ' + error.message);
-    }
-}
-
-// Fungsi untuk menampilkan pengguna tertunda (admin)
-async function showPendingUsers() {
-    try {
-        const user = auth.currentUser;
-        const manageUsersMessage = document.getElementById('manageUsersMessage');
-        manageUsersMessage.textContent = '';
-
-        if (!user) {
-            manageUsersMessage.textContent = 'Please login first';
-            showLogin();
-            return;
-        }
-
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-            manageUsersMessage.textContent = 'User data not found';
-            await auth.signOut();
-            showLogin();
-            return;
-        }
-
-        const userData = userDoc.data();
-        if (!userData.isAdmin) {
-            console.error('Access denied: Not an admin');
-            manageUsersMessage.textContent = 'Access denied: Admins only';
-            showProjects();
-            return;
-        }
-
-        console.log('Fetching pending users for admin:', userData.username);
-        document.getElementById('actionsContainer').style.display = 'none';
-        document.getElementById('pendingUsersContainer').style.display = 'block';
-        document.getElementById('messagesContainer').style.display = 'none';
-        document.getElementById('messageContainer').style.display = 'none';
-        document.getElementById('projectsContainer').style.display = 'none';
-        document.getElementById('userProjectsContainer').style.display = 'none';
-        document.getElementById('addProjectForm').style.display = 'none';
-        document.getElementById('tutorialContainer').style.display = 'none';
-        const pendingUsersList = document.getElementById('pendingUsersList');
-        const approvedUsersList = document.getElementById('approvedUsersList');
-        pendingUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        approvedUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-        const pendingSnapshot = await db.collection('pendingUsers').get();
-        console.log('Pending users snapshot size:', pendingSnapshot.size);
-        pendingUsersList.innerHTML = '';
-        if (pendingSnapshot.empty) {
-            pendingUsersList.innerHTML = '<p class="text-center">No pending users</p>';
-        } else {
-            pendingSnapshot.forEach(doc => {
-                const userData = doc.data();
-                const div = document.createElement('div');
-                div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
-                div.innerHTML = `
-                    <span>${userData.username} (${userData.email})</span>
-                    <div>
-                        <button class="btn btn-success me-2 approve-btn" data-id="${doc.id}">Approve</button>
-                        <button class="btn btn-danger reject-btn" data-id="${doc.id}">Reject</button>
-                    </div>
-                `;
-                pendingUsersList.appendChild(div);
-            });
-
-            // Tambahkan event listener untuk tombol Approve dan Reject
-            document.querySelectorAll('.approve-btn').forEach(button => {
-                button.addEventListener('click', () => approveUser(button.dataset.id));
-            });
-            document.querySelectorAll('.reject-btn').forEach(button => {
-                button.addEventListener('click', () => rejectUser(button.dataset.id));
-            });
-        }
-
-        const approvedSnapshot = await db.collection('users').get();
-        console.log('Approved users snapshot size:', approvedSnapshot.size);
-        approvedUsersList.innerHTML = '';
-        if (approvedSnapshot.empty) {
-            approvedUsersList.innerHTML = '<p class="text-center">No approved users</p>';
-        } else {
-            approvedSnapshot.forEach(doc => {
-                const userData = doc.data();
-                const div = document.createElement('div');
-                div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
-                div.innerHTML = `
-                    <span>${userData.username} (${userData.email})</span>
-                    <div>
-                        <button class="btn btn-primary me-2 tools-btn" data-id="${doc.id}" data-allowed="${userData.allowedTools}">
-                            ${userData.allowedTools ? 'Disable Tools' : 'Enable Tools'}
-                        </button>
-                        <button class="btn btn-danger remove-btn" data-id="${doc.id}" data-username="${userData.username}">Remove</button>
-                    </div>
-                `;
-                approvedUsersList.appendChild(div);
-            });
-
-            // Tambahkan event listener untuk tombol Tools dan Remove
-            document.querySelectorAll('.tools-btn').forEach(button => {
-                button.addEventListener('click', () => toggleToolsAccess(button.dataset.id, button.dataset.allowed === 'false'));
-            });
-            document.querySelectorAll('.remove-btn').forEach(button => {
-                button.addEventListener('click', () => removeUser(button.dataset.id, button.dataset.username));
-            });
-        }
-    } catch (error) {
-        console.error('Error showing pending users:', error);
-        document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menyetujui pengguna
-async function approveUser(pendingUserId) {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const adminDoc = await db.collection('users').doc(user.uid).get();
-        if (!adminDoc.exists || !adminDoc.data().isAdmin) {
-            alert('Access denied: Admins only');
-            return;
-        }
-
-        const doc = await db.collection('pendingUsers').doc(pendingUserId).get();
-        if (!doc.exists) {
-            alert('User not found');
-            return;
-        }
-
-        const userData = doc.data();
-        const userCredential = await auth.createUserWithEmailAndPassword(userData.email, userData.password);
-        const newUser = userCredential.user;
-
-        await db.collection('users').doc(newUser.uid).set({
-            username: userData.username,
-            email: userData.email,
-            isAdmin: false,
-            allowedTools: false,
-            createdAt: userData.createdAt
-        });
-
-        await db.collection('pendingUsers').doc(pendingUserId).delete();
-        alert('User approved successfully');
-        showPendingUsers();
-    } catch (error) {
-        console.error('Error approving user:', error);
-        document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menolak pengguna
-async function rejectUser(pendingUserId) {
-    if (!confirm('Are you sure you want to reject this user?')) return;
-    try {
-        await db.collection('pendingUsers').doc(pendingUserId).delete();
-        alert('User rejected successfully');
-        showPendingUsers();
-    } catch (error) {
-        console.error('Error rejecting user:', error);
-        document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk menghapus pengguna
-async function removeUser(userId, username) {
-    if (!confirm(`Are you sure you want to remove user ${username}? This action cannot be undone.`)) return;
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const adminDoc = await db.collection('users').doc(user.uid).get();
-        if (!adminDoc.exists || !adminDoc.data().isAdmin) {
-            alert('Access denied: Admins only');
-            return;
-        }
-
-        if (user.uid === userId) {
-            alert('You cannot remove your own account');
-            return;
-        }
-
-        await db.collection('users').doc(userId).delete();
-        alert(`User ${username} removed successfully`);
-        showPendingUsers();
-    } catch (error) {
-        console.error('Error removing user:', error);
-        document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk mengaktifkan/menonaktifkan akses Tools
-async function toggleToolsAccess(userId, allowedTools) {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Please login first');
-            showLogin();
-            return;
-        }
-
-        const adminDoc = await db.collection('users').doc(user.uid).get();
-        if (!adminDoc.exists || !adminDoc.data().isAdmin) {
-            alert('Access denied: Admins only');
-            return;
-        }
-
-        await db.collection('users').doc(userId).update({ allowedTools });
-        alert('Tools access updated successfully');
-        showPendingUsers();
-    } catch (error) {
-        console.error('Error updating tools access:', error);
-        document.getElementById('manageUsersMessage').textContent = 'Error: ' + error.message;
-    }
-}
-
-// Fungsi untuk kembali ke halaman proyek
-function goBack() {
-    showProjects();
-}
-
-// Inisialisasi halaman
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        // Tombol Login
-        const loginButton = document.getElementById('loginButton');
-        if (loginButton) {
-            loginButton.addEventListener('click', login);
+        // Fungsi untuk menampilkan form login
+        function showLogin() {
+            const loginContainer = document.getElementById('loginContainer');
+            const registerContainer = document.getElementById('registerContainer');
+            const resetPasswordContainer = document.getElementById('resetPasswordContainer');
+            if (loginContainer) loginContainer.style.display = 'block';
+            if (registerContainer) registerContainer.style.display = 'none';
+            if (resetPasswordContainer) resetPasswordContainer.style.display = 'none';
         }
 
-        // Tombol Register (menuju form register)
-        const registerButton = document.getElementById('registerButton');
-        if (registerButton) {
-            registerButton.addEventListener('click', showRegisterForm);
+        // Fungsi untuk menampilkan form registrasi
+        function showRegister() {
+            const loginContainer = document.getElementById('loginContainer');
+            const registerContainer = document.getElementById('registerContainer');
+            const resetPasswordContainer = document.getElementById('resetPasswordContainer');
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (registerContainer) registerContainer.style.display = 'block';
+            if (resetPasswordContainer) resetPasswordContainer.style.display = 'none';
         }
 
-        // Tombol Forgot Password
-        const forgotPasswordButton = document.getElementById('forgotPasswordButton');
-        if (forgotPasswordButton) {
-            forgotPasswordButton.addEventListener('click', showForgotPassword);
+        // Fungsi untuk menampilkan form reset password
+        function showResetPassword() {
+            const loginContainer = document.getElementById('loginContainer');
+            const registerContainer = document.getElementById('registerContainer');
+            const resetPasswordContainer = document.getElementById('resetPasswordContainer');
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (registerContainer) registerContainer.style.display = 'none';
+            if (resetPasswordContainer) resetPasswordContainer.style.display = 'block';
         }
 
-        // Tombol Submit Register
-        const submitRegisterButton = document.getElementById('submitRegisterButton');
-        if (submitRegisterButton) {
-            submitRegisterButton.addEventListener('click', register);
+        // Fungsi registrasi
+        async function register() {
+            try {
+                const username = document.getElementById('registerUsername')?.value.trim();
+                const email = document.getElementById('registerEmail')?.value.trim();
+                const password = document.getElementById('registerPassword')?.value.trim();
+                const registerMessage = document.getElementById('registerMessage');
+                if (registerMessage) registerMessage.textContent = '';
+
+                console.log('Register attempt:', { username, email });
+
+                if (!username || !email || !password) {
+                    if (registerMessage) registerMessage.textContent = 'Please fill all fields';
+                    console.log('Missing fields:', { username, email, password });
+                    return;
+                }
+
+                if (username.length < 3) {
+                    if (registerMessage) registerMessage.textContent = 'Username must be at least 3 characters';
+                    console.log('Invalid username length:', username);
+                    return;
+                }
+
+                if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                    if (registerMessage) registerMessage.textContent = 'Please enter a valid email';
+                    console.log('Invalid email format:', email);
+                    return;
+                }
+
+                if (password.length < 6) {
+                    if (registerMessage) registerMessage.textContent = 'Password must be at least 6 characters';
+                    console.log('Invalid password length:', password);
+                    return;
+                }
+
+                console.log('Checking existing pending users...');
+                const pendingSnapshot = await db.collection('pendingUsers').where('email', '==', email).get();
+                if (!pendingSnapshot.empty) {
+                    if (registerMessage) registerMessage.textContent = 'Email is already pending approval';
+                    console.log('Email already pending:', email);
+                    return;
+                }
+
+                console.log('Checking existing approved users...');
+                const userSnapshot = await db.collection('users').where('email', '==', email).get();
+                if (!userSnapshot.empty) {
+                    if (registerMessage) registerMessage.textContent = 'Email is already registered';
+                    console.log('Email already registered:', email);
+                    return;
+                }
+
+                const pendingUserData = {
+                    username,
+                    email,
+                    password,
+                    isAdmin: false,
+                    allowedTools: false,
+                    createdAt: { timestamp: new Date().toISOString() }
+                };
+                console.log('Saving pending user:', pendingUserData);
+                await db.collection('pendingUsers').add(pendingUserData);
+                console.log('Pending user saved successfully');
+                alert('Registration submitted, awaiting admin approval');
+                showLogin();
+            } catch (error) {
+                console.error('Error registering:', error);
+                const registerMessage = document.getElementById('registerMessage');
+                if (registerMessage) registerMessage.textContent = 'Error: ' + error.message;
+            }
         }
 
-        // Tombol Back to Login (dari form register)
-        const backToLoginButton = document.getElementById('backToLoginButton');
-        if (backToLoginButton) {
-            backToLoginButton.addEventListener('click', showLogin);
+        // Fungsi login
+        async function login() {
+            try {
+                const email = document.getElementById('email')?.value.trim();
+                const password = document.getElementById('password')?.value.trim();
+                const loginMessage = document.getElementById('loginMessage');
+                if (loginMessage) loginMessage.textContent = '';
+
+                if (!email || !password) {
+                    if (loginMessage) loginMessage.textContent = 'Please fill all fields';
+                    return;
+                }
+
+                await auth.signInWithEmailAndPassword(email, password);
+                console.log('Login successful');
+            } catch (error) {
+                console.error('Error logging in:', error);
+                const loginMessage = document.getElementById('loginMessage');
+                if (loginMessage) loginMessage.textContent = 'Error: ' + error.message;
+            }
         }
 
-        // Tombol Reset Password
-        const resetPasswordButton = document.getElementById('resetPasswordButton');
-        if (resetPasswordButton) {
-            resetPasswordButton.addEventListener('click', resetPassword);
+        // Fungsi logout
+        async function logout() {
+            try {
+                await auth.signOut();
+                console.log('Logout successful');
+                showLogin();
+            } catch (error) {
+                console.error('Error logging out:', error);
+                alert('Error logging out: ' + error.message);
+            }
         }
 
-        // Tombol Back to Login (dari form reset password)
-        const backToLoginResetButton = document.getElementById('backToLoginResetButton');
-        if (backToLoginResetButton) {
-            backToLoginResetButton.addEventListener('click', showLogin);
+        // Fungsi reset password
+        async function resetPassword() {
+            try {
+                const email = document.getElementById('resetEmail')?.value.trim();
+                const resetMessage = document.getElementById('resetMessage');
+                if (resetMessage) resetMessage.textContent = '';
+
+                if (!email) {
+                    if (resetMessage) resetMessage.textContent = 'Please enter an email';
+                    return;
+                }
+
+                await auth.sendPasswordResetEmail(email);
+                alert('Password reset email sent');
+                showLogin();
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                const resetMessage = document.getElementById('resetMessage');
+                if (resetMessage) resetMessage.textContent = 'Error: ' + error.message;
+            }
         }
 
-        // Tombol Logout
-        const logoutButton = document.getElementById('logoutButton');
-        if (logoutButton) {
-            logoutButton.addEventListener('click', logout);
+        // Fungsi untuk memuat proyek publik
+        async function loadPublicProjects() {
+            try {
+                const projectsContainer = document.getElementById('projectsContainer')?.querySelector('.row');
+                if (!projectsContainer) {
+                    console.log('Projects container not found');
+                    return;
+                }
+
+                projectsContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                const snapshot = await db.collection('projects').get();
+                projectsContainer.innerHTML = '';
+                if (snapshot.empty) {
+                    projectsContainer.innerHTML = '<p class="text-center">No projects found</p>';
+                    return;
+                }
+
+                const user = auth.currentUser;
+                let userData = null;
+                if (user) {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        userData = userDoc.data();
+                    }
+                }
+
+                snapshot.forEach(doc => {
+                    const project = doc.data();
+                    if (project.type === 'Tools' && (!userData || (!userData.allowedTools && !userData.isAdmin))) {
+                        return;
+                    }
+                    const div = document.createElement('div');
+                    div.className = 'col-md-4 mb-4';
+                    div.innerHTML = `
+                        <div class="card h-100">
+                            ${project.imageUrl ? `<img src="${project.imageUrl}" class="card-img-top" alt="${project.name}" style="max-height: 200px; object-fit: cover;">` : ''}
+                            <div class="card-body">
+                                <h5 class="card-title">${project.name}</h5>
+                                <p class="card-text"><strong>Type:</strong> ${project.type}</p>
+                                <p class="card-text"><strong>Status:</strong> ${project.status}</p>
+                                <p class="card-text"><strong>Added By:</strong> ${project.addedBy}</p>
+                                <button class="btn btn-secondary tutorial-btn" data-id="${doc.id}">View Tutorial</button>
+                            </div>
+                        </div>
+                    `;
+                    projectsContainer.appendChild(div);
+                });
+
+                document.querySelectorAll('.tutorial-btn').forEach(button => {
+                    button.addEventListener('click', () => showTutorial(button.dataset.id));
+                });
+            } catch (error) {
+                console.error('Error loading public projects:', error);
+                if (projectsContainer) {
+                    projectsContainer.innerHTML = '<p class="text-center">Failed to load projects. Please try again later.</p>';
+                }
+            }
         }
 
-        // Tombol Add Project
-        const addProjectButton = document.getElementById('addProjectButton');
-        if (addProjectButton) {
-            addProjectButton.addEventListener('click', showAddProjectForm);
+        // Fungsi untuk menampilkan tutorial
+        async function showTutorial(projectId) {
+            try {
+                const tutorialContainer = document.getElementById('tutorialContainer');
+                const projectsContainer = document.getElementById('projectsContainer');
+                if (tutorialContainer) tutorialContainer.style.display = 'block';
+                if (projectsContainer) projectsContainer.style.display = 'none';
+
+                const projectDoc = await db.collection('projects').doc(projectId).get();
+                if (!projectDoc.exists) {
+                    if (tutorialContainer) {
+                        tutorialContainer.innerHTML = '<p class="text-center">Project not found</p>';
+                    }
+                    return;
+                }
+
+                const project = projectDoc.data();
+                const tutorialProjectName = document.getElementById('tutorialProjectName');
+                const tutorialProjectLink = document.getElementById('tutorialProjectLink');
+                const tutorialDescription = document.getElementById('tutorialDescription');
+                if (tutorialProjectName) tutorialProjectName.textContent = project.name;
+                if (tutorialProjectLink) {
+                    tutorialProjectLink.href = project.link;
+                    tutorialProjectLink.textContent = project.link;
+                }
+                if (tutorialDescription) tutorialDescription.textContent = project.description;
+            } catch (error) {
+                console.error('Error showing tutorial:', error);
+                const tutorialContainer = document.getElementById('tutorialContainer');
+                if (tutorialContainer) {
+                    tutorialContainer.innerHTML = '<p class="text-center">Failed to load tutorial. Please try again later.</p>';
+                }
+            }
         }
 
-        // Tombol Submit Project
-        const submitProjectButton = document.getElementById('submitProjectButton');
-        if (submitProjectButton) {
-            submitProjectButton.addEventListener('click', addProject);
+        // Fungsi untuk memperbarui jumlah pesan
+        async function updateMessageCount() {
+            try {
+                const user = auth.currentUser;
+                if (!user) return;
+
+                const snapshot = await db.collection('messages')
+                    .where('receiverId', '==', user.uid)
+                    .where('read', '==', false)
+                    .get();
+
+                const messageCount = document.getElementById('messageCount');
+                if (messageCount) {
+                    messageCount.textContent = snapshot.size;
+                    messageCount.style.display = snapshot.empty ? 'none' : 'inline';
+                }
+            } catch (error) {
+                console.error('Error updating message count:', error);
+            }
         }
 
-        // Tombol Cancel Project
-        const cancelProjectButton = document.getElementById('cancelProjectButton');
-        if (cancelProjectButton) {
-            cancelProjectButton.addEventListener('click', showProjects);
-        }
+        // Fungsi untuk menampilkan pengguna tertunda (admin)
+        async function showPendingUsers() {
+            try {
+                const user = auth.currentUser;
+                const manageUsersMessage = document.getElementById('manageUsersMessage');
+                if (manageUsersMessage) manageUsersMessage.textContent = '';
 
-        // Tombol My Projects
-        const myProjectsButton = document.getElementById('myProjectsButton');
-        if (myProjectsButton) {
-            myProjectsButton.addEventListener('click', showUserProjects);
-        }
+                if (!user) {
+                    if (manageUsersMessage) manageUsersMessage.textContent = 'Please login first';
+                    showLogin();
+                    return;
+                }
 
-        // Tombol Send Message to Admin
-        const messageFormButton = document.getElementById('messageFormButton');
-        if (messageFormButton) {
-            messageFormButton.addEventListener('click', showMessageForm);
-        }
-
-        // Tombol Send Message
-        const sendMessageButton = document.getElementById('sendMessageButton');
-        if (sendMessageButton) {
-            sendMessageButton.addEventListener('click', sendMessage);
-        }
-
-        // Tombol Close Message Form
-        const closeMessageButton = document.getElementById('closeMessageButton');
-        if (closeMessageButton) {
-            closeMessageButton.addEventListener('click', closeMessageForm);
-        }
-
-        // Tombol Messages
-        const messagesButton = document.getElementById('messagesButton');
-        if (messagesButton) {
-            messagesButton.addEventListener('click', showMessages);
-        }
-
-        // Tombol Pending Users
-        const pendingUsersButton = document.getElementById('pendingUsersButton');
-        if (pendingUsersButton) {
-            pendingUsersButton.addEventListener('click', showPendingUsers);
-        }
-
-        // Tombol Back
-        const backButtons = document.querySelectorAll('#backButton');
-        backButtons.forEach(button => {
-            button.addEventListener('click', goBack);
-        });
-
-        // Inisialisasi halaman
-        auth.onAuthStateChanged(async user => {
-            if (user) {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (!userDoc.exists) {
-                    console.log('User data not found, creating new document for:', user.uid);
-                    const userData = {
-                        username: user.email.split('@')[0],
-                        email: user.email,
-                        isAdmin: user.email === 'leviathan@lfarm.com',
-                        allowedTools: user.email === 'leviathan@lfarm.com',
-                        createdAt: { timestamp: new Date().toISOString() }
-                    };
-                    await db.collection('users').doc(user.uid).set(userData);
-                    localStorage.setItem('user', JSON.stringify({ id: user.uid, ...userData }));
-                } else {
-                    const userData = { id: user.uid, ...userDoc.data() };
-                    localStorage.setItem('user', JSON.stringify(userData));
+                    if (manageUsersMessage) manageUsersMessage.textContent = 'User data not found';
+                    await auth.signOut();
+                    showLogin();
+                    return;
                 }
 
-                const userData = JSON.parse(localStorage.getItem('user'));
-                console.log('User loaded:', userData);
-                document.getElementById('usernameText').textContent = userData.username;
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('navbarUsername').style.display = 'inline-block';
-                document.getElementById('messagesButton').style.display = 'inline-block';
-                document.getElementById('actionsContainer').style.display = 'block';
-                if (userData.isAdmin) {
-                    document.getElementById('pendingUsersButton').style.display = 'inline-block';
+                const userData = userDoc.data();
+                if (!userData.isAdmin) {
+                    console.error('Access denied: Not an admin');
+                    if (manageUsersMessage) manageUsersMessage.textContent = 'Access denied: Admins only';
+                    return;
                 }
 
-                await updateMessageCount();
-            } else {
-                console.log('No user signed in');
-                localStorage.removeItem('user');
-                showLogin();
+                console.log('Fetching pending users for admin:', userData.username);
+                const actionsContainer = document.getElementById('actionsContainer');
+                const pendingUsersContainer = document.getElementById('pendingUsersContainer');
+                const messagesContainer = document.getElementById('messagesContainer');
+                const messageContainer = document.getElementById('messageContainer');
+                const projectsContainer = document.getElementById('projectsContainer');
+                const userProjectsContainer = document.getElementById('userProjectsContainer');
+                const addProjectForm = document.getElementById('addProjectForm');
+                const tutorialContainer = document.getElementById('tutorialContainer');
+                if (actionsContainer) actionsContainer.style.display = 'none';
+                if (pendingUsersContainer) pendingUsersContainer.style.display = 'block';
+                if (messagesContainer) messagesContainer.style.display = 'none';
+                if (messageContainer) messageContainer.style.display = 'none';
+                if (projectsContainer) projectsContainer.style.display = 'none';
+                if (userProjectsContainer) userProjectsContainer.style.display = 'none';
+                if (addProjectForm) addProjectForm.style.display = 'none';
+                if (tutorialContainer) tutorialContainer.style.display = 'none';
+
+                const pendingUsersList = document.getElementById('pendingUsersList');
+                const approvedUsersList = document.getElementById('approvedUsersList');
+                if (pendingUsersList) {
+                    pendingUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                }
+                if (approvedUsersList) {
+                    approvedUsersList.innerHTML = '<div class="text-center"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                }
+
+                const pendingSnapshot = await db.collection('pendingUsers').get();
+                console.log('Pending users snapshot size:', pendingSnapshot.size);
+                if (pendingUsersList) {
+                    pendingUsersList.innerHTML = '';
+                    if (pendingSnapshot.empty) {
+                        pendingUsersList.innerHTML = '<p class="text-center">No pending users</p>';
+                    } else {
+                        pendingSnapshot.forEach(doc => {
+                            const userData = doc.data();
+                            const div = document.createElement('div');
+                            div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
+                            div.innerHTML = `
+                                <span>${userData.username} (${userData.email})</span>
+                                <div>
+                                    <button class="btn btn-success me-2 approve-btn" data-id="${doc.id}">Approve</button>
+                                    <button class="btn btn-danger reject-btn" data-id="${doc.id}">Reject</button>
+                                </div>
+                            `;
+                            pendingUsersList.appendChild(div);
+                        });
+
+                        document.querySelectorAll('.approve-btn').forEach(button => {
+                            button.addEventListener('click', () => approveUser(button.dataset.id));
+                        });
+                        document.querySelectorAll('.reject-btn').forEach(button => {
+                            button.addEventListener('click', () => rejectUser(button.dataset.id));
+                        });
+                    }
+                }
+
+                const approvedSnapshot = await db.collection('users').get();
+                console.log('Approved users snapshot size:', approvedSnapshot.size);
+                if (approvedUsersList) {
+                    approvedUsersList.innerHTML = '';
+                    if (approvedSnapshot.empty) {
+                        approvedUsersList.innerHTML = '<p class="text-center">No approved users</p>';
+                    } else {
+                        approvedSnapshot.forEach(doc => {
+                            const userData = doc.data();
+                            const div = document.createElement('div');
+                            div.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
+                            div.innerHTML = `
+                                <span>${userData.username} (${userData.email})</span>
+                                <div>
+                                    <button class="btn btn-primary me-2 tools-btn" data-id="${doc.id}" data-allowed="${userData.allowedTools}">
+                                        ${userData.allowedTools ? 'Disable Tools' : 'Enable Tools'}
+                                    </button>
+                                    <button class="btn btn-danger remove-btn" data-id="${doc.id}" data-username="${userData.username}">Remove</button>
+                                </div>
+                            `;
+                            approvedUsersList.appendChild(div);
+                        });
+
+                        document.querySelectorAll('.tools-btn').forEach(button => {
+                            button.addEventListener('click', () => toggleToolsAccess(button.dataset.id, button.dataset.allowed === 'false'));
+                        });
+                        document.querySelectorAll('.remove-btn').forEach(button => {
+                            button.addEventListener('click', () => removeUser(button.dataset.id, button.dataset.username));
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error showing pending users:', error);
+                const manageUsersMessage = document.getElementById('manageUsersMessage');
+                if (manageUsersMessage) manageUsersMessage.textContent = 'Error: ' + error.message;
             }
-            loadPublicProjects();
+        }
+
+        // Fungsi untuk menyetujui pengguna
+        async function approveUser(pendingId) {
+            try {
+                const pendingDoc = await db.collection('pendingUsers').doc(pendingId).get();
+                if (!pendingDoc.exists) {
+                    alert('Pending user not found');
+                    return;
+                }
+
+                const pendingData = pendingDoc.data();
+                const { email, password, username, isAdmin, allowedTools } = pendingData;
+
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                await db.collection('users').doc(user.uid).set({
+                    username,
+                    email,
+                    isAdmin: isAdmin || false,
+                    allowedTools: allowedTools || false,
+                    createdAt: { timestamp: new Date().toISOString() }
+                });
+
+                await db.collection('pendingUsers').doc(pendingId).delete();
+                alert('User approved successfully');
+                showPendingUsers();
+            } catch (error) {
+                console.error('Error approving user:', error);
+                alert('Error approving user: ' + error.message);
+            }
+        }
+
+        // Fungsi untuk menolak pengguna
+        async function rejectUser(pendingId) {
+            try {
+                await db.collection('pendingUsers').doc(pendingId).delete();
+                alert('User rejected successfully');
+                showPendingUsers();
+            } catch (error) {
+                console.error('Error rejecting user:', error);
+                alert('Error rejecting user: ' + error.message);
+            }
+        }
+
+        // Fungsi untuk mengaktifkan/menonaktifkan akses tools
+        async function toggleToolsAccess(userId, enable) {
+            try {
+                await db.collection('users').doc(userId).update({
+                    allowedTools: enable
+                });
+                alert(`Tools access ${enable ? 'enabled' : 'disabled'} successfully`);
+                showPendingUsers();
+            } catch (error) {
+                console.error('Error toggling tools access:', error);
+                alert('Error toggling tools access: ' + error.message);
+            }
+        }
+
+        // Fungsi untuk menghapus pengguna
+        async function removeUser(userId, username) {
+            try {
+                if (confirm(`Are you sure you want to remove ${username}?`)) {
+                    await db.collection('users').doc(userId).delete();
+                    alert('User removed successfully');
+                    showPendingUsers();
+                }
+            } catch (error) {
+                console.error('Error removing user:', error);
+                alert('Error removing user: ' + error.message);
+            }
+        }
+
+        // Event listener untuk tombol
+        const loginButton = document.getElementById('loginButton');
+        if (loginButton) loginButton.addEventListener('click', login);
+
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) logoutButton.addEventListener('click', logout);
+
+        const registerButton = document.getElementById('registerButton');
+        if (registerButton) registerButton.addEventListener('click', showRegister);
+
+        const submitRegisterButton = document.getElementById('submitRegisterButton');
+        if (submitRegisterButton) submitRegisterButton.addEventListener('click', register);
+
+        const backToLoginButton = document.getElementById('backToLoginButton');
+        if (backToLoginButton) backToLoginButton.addEventListener('click', showLogin);
+
+        const forgotPasswordButton = document.getElementById('forgotPasswordButton');
+        if (forgotPasswordButton) forgotPasswordButton.addEventListener('click', showResetPassword);
+
+        const resetPasswordButton = document.getElementById('resetPasswordButton');
+        if (resetPasswordButton) resetPasswordButton.addEventListener('click', resetPassword);
+
+        const backToLoginResetButton = document.getElementById('backToLoginResetButton');
+        if (backToLoginResetButton) backToLoginResetButton.addEventListener('click', showLogin);
+
+        const pendingUsersButton = document.getElementById('pendingUsersButton');
+        if (pendingUsersButton) pendingUsersButton.addEventListener('click', showPendingUsers);
+
+        // Inisialisasi auth state
+        auth.onAuthStateChanged(async user => {
+            try {
+                if (user) {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (!userDoc.exists) {
+                        console.log('User data not found, creating new document for:', user.uid);
+                        const userData = {
+                            username: user.email.split('@')[0],
+                            email: user.email,
+                            isAdmin: user.email === 'leviathan@lfarm.com',
+                            allowedTools: user.email === 'leviathan@lfarm.com',
+                            createdAt: { timestamp: new Date().toISOString() }
+                        };
+                        await db.collection('users').doc(user.uid).set(userData);
+                        localStorage.setItem('user', JSON.stringify({ id: user.uid, ...userData }));
+                    } else {
+                        const userData = { id: user.uid, ...userDoc.data() };
+                        localStorage.setItem('user', JSON.stringify(userData));
+                    }
+
+                    const userData = JSON.parse(localStorage.getItem('user'));
+                    console.log('User loaded:', userData);
+
+                    const usernameText = document.getElementById('usernameText');
+                    if (usernameText) usernameText.textContent = userData.username;
+
+                    const loginContainer = document.getElementById('loginContainer');
+                    if (loginContainer) loginContainer.style.display = 'none';
+
+                    const logoutButton = document.getElementById('logoutButton');
+                    if (logoutButton) logoutButton.style.display = 'block';
+
+                    const navbarUsername = document.getElementById('navbarUsername');
+                    if (navbarUsername) navbarUsername.style.display = 'inline-block';
+
+                    const messagesButton = document.getElementById('messagesButton');
+                    if (messagesButton) messagesButton.style.display = 'inline-block';
+
+                    const actionsContainer = document.getElementById('actionsContainer');
+                    if (actionsContainer) actionsContainer.style.display = 'block';
+
+                    const pendingUsersButton = document.getElementById('pendingUsersButton');
+                    if (userData.isAdmin && pendingUsersButton) {
+                        pendingUsersButton.style.display = 'inline-block';
+                    }
+
+                    await updateMessageCount();
+                } else {
+                    console.log('No user signed in');
+                    localStorage.removeItem('user');
+
+                    const loginContainer = document.getElementById('loginContainer');
+                    if (loginContainer) loginContainer.style.display = 'block';
+
+                    const logoutButton = document.getElementById('logoutButton');
+                    if (logoutButton) logoutButton.style.display = 'none';
+
+                    const navbarUsername = document.getElementById('navbarUsername');
+                    if (navbarUsername) navbarUsername.style.display = 'none';
+
+                    const messagesButton = document.getElementById('messagesButton');
+                    if (messagesButton) messagesButton.style.display = 'none';
+
+                    const pendingUsersButton = document.getElementById('pendingUsersButton');
+                    if (pendingUsersButton) pendingUsersButton.style.display = 'none';
+
+                    const actionsContainer = document.getElementById('actionsContainer');
+                    if (actionsContainer) actionsContainer.style.display = 'none';
+                }
+                loadPublicProjects();
+            } catch (error) {
+                console.error('Error in auth state change:', error);
+                alert('Failed to initialize page: ' + error.message);
+            }
         });
+
+        // Muat proyek publik saat halaman dimuat
+        loadPublicProjects();
     } catch (error) {
-        console.error('Error initializing page:', error);
-        alert('Failed to initialize page: ' + error.message);
+        console.error('Error in DOMContentLoaded:', error);
+        alert('Failed to initialize application: ' + error.message);
     }
 });
