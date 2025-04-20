@@ -16,17 +16,6 @@ try {
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Pastikan Firestore terkoneksi
-db.collection('users')
-    .get()
-    .then(snapshot => {
-        console.log('Firestore connected, collections size:', snapshot.size);
-    })
-    .catch(error => {
-        console.error('Firestore connection error:', error);
-        alert('Failed to connect to Firestore: ' + error.message);
-    });
-
 // Fungsi untuk memeriksa keberadaan halaman
 async function checkPageExists(url) {
     try {
@@ -514,7 +503,8 @@ async function loadPublicProjects() {
 
         snapshot.forEach(doc => {
             const project = doc.data();
-            if (project.type === 'Tools' && (!userData || !userData.allowedTools) && !userData?.isAdmin) {
+            // Sembunyikan proyek tipe Tools untuk pengguna yang tidak punya akses
+            if (project.type === 'Tools' && (!userData || (!userData.allowedTools && !userData.isAdmin))) {
                 return;
             }
             const div = document.createElement('div');
@@ -535,7 +525,7 @@ async function loadPublicProjects() {
         });
     } catch (error) {
         console.error('Error loading public projects:', error);
-        alert('Failed to load projects: ' + error.message);
+        projectsContainer.innerHTML = '<p class="text-center">Failed to load projects. Please try again later.</p>';
     }
 }
 
