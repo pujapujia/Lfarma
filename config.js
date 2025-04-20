@@ -13,5 +13,4 @@ const config = {
         uploadPreset: "lfarm_unsigned" // Ganti dengan upload preset kamu
     }
 };
-
 export default config;

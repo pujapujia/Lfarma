@@ -1,12 +1,10 @@
 // app.js
-import firebase from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js';
-import 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js';
-import 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js';
 import config from './config.js';
 
+// Pastikan firebase sudah dimuat dari <script> di HTML
 const app = firebase.initializeApp(config.firebase);
-const db = app.firestore();
-const auth = app.auth();
+const db = firebase.firestore();
+const auth = firebase.auth();
 console.log('Firebase initialized successfully');
 
 document.addEventListener('DOMContentLoaded', () => {
